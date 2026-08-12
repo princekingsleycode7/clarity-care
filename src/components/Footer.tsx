@@ -1,0 +1,291 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { Instagram, Twitter, Mail, ArrowUpRight, Check } from 'lucide-react';
+import { ContactModal } from './ContactModal';
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+
+gsap.registerPlugin(ScrollTrigger);
+
+export const Footer: React.FC = () => {
+  const [email, setEmail] = useState('');
+  const [subscribed, setSubscribed] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalTopic, setModalTopic] = useState('General');
+  const footerRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const ctx = gsap.context(() => {
+      // Top link columns & newsletter form reveal
+      gsap.fromTo(
+        '.footer-top-block',
+        { y: 30, opacity: 0 },
+        {
+          scrollTrigger: {
+            trigger: footerRef.current,
+            start: 'top 85%',
+          },
+          y: 0,
+          opacity: 1,
+          duration: 0.8,
+          ease: 'power3.out',
+          clearProps: 'all',
+        }
+      );
+
+      // Giant 'kind mind' title scaling reveal
+      gsap.fromTo(
+        '.footer-brand-title',
+        { scale: 0.9, y: 30, opacity: 0 },
+        {
+          scrollTrigger: {
+            trigger: '.footer-brand-title',
+            start: 'top 92%',
+          },
+          scale: 1,
+          y: 0,
+          opacity: 1,
+          duration: 1,
+          ease: 'power3.out',
+          clearProps: 'all',
+        }
+      );
+    }, footerRef);
+
+    return () => ctx.revert();
+  }, []);
+
+  const handleSubscribe = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (email.trim()) {
+      setSubscribed(true);
+      setTimeout(() => {
+        setEmail('');
+        setSubscribed(false);
+      }, 4000);
+    }
+  };
+
+  const handleOpenModal = (topic: string) => {
+    setModalTopic(topic);
+    setIsModalOpen(true);
+  };
+
+  return (
+    <footer ref={footerRef} className="w-full bg-[#142213] text-white pt-16 sm:pt-20 pb-8 px-4 sm:px-8 md:px-12 lg:px-16 border-t border-[#233821] overflow-hidden transition-colors duration-300">
+      <div className="max-w-7xl mx-auto">
+        {/* Top Section: Newsletter & Links Columns */}
+        <div className="footer-top-block grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 pb-16 border-b border-[#253e23]">
+          {/* Left Block: Tagline, Email Form & Socials */}
+          <div className="lg:col-span-5 flex flex-col justify-between space-y-6">
+            <div>
+              <div className="text-sm font-semibold text-[#b4c898] uppercase tracking-widest mb-4">
+                Care Different ™
+              </div>
+
+              {/* Email Input Form */}
+              <form onSubmit={handleSubscribe} className="flex flex-col sm:flex-row items-stretch gap-2.5 max-w-md">
+                <div className="relative flex-1">
+                  <input
+                    type="email"
+                    required
+                    placeholder="email@gmail.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full bg-[#1e301d] border border-[#2e472a] focus:border-[#a4bc87] text-white placeholder-gray-400 rounded-xl px-4 py-3 text-xs sm:text-sm outline-none transition-colors"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="bg-[#d2dbc8] hover:bg-[#c2ccb8] text-[#1c2c19] text-xs sm:text-sm font-bold px-5 py-3 rounded-xl transition-all cursor-pointer shrink-0 shadow-md active:scale-95 flex items-center justify-center gap-1.5 whitespace-nowrap"
+                >
+                  {subscribed ? (
+                    <>
+                      <Check size={16} className="text-[#1c2c19]" />
+                      <span>Subscribed!</span>
+                    </>
+                  ) : (
+                    <span>Join for free</span>
+                  )}
+                </button>
+              </form>
+            </div>
+
+            {/* Social Icons */}
+            <div className="flex items-center gap-3 pt-2">
+              <a
+                href="#instagram"
+                aria-label="Instagram"
+                className="w-10 h-10 rounded-full bg-[#1e301d] hover:bg-[#d2dbc8] text-white hover:text-[#1c2c19] border border-[#2e472a] flex items-center justify-center transition-all cursor-pointer"
+              >
+                <Instagram size={18} />
+              </a>
+              <a
+                href="#twitter"
+                aria-label="Twitter"
+                className="w-10 h-10 rounded-full bg-[#1e301d] hover:bg-[#d2dbc8] text-white hover:text-[#1c2c19] border border-[#2e472a] flex items-center justify-center transition-all cursor-pointer"
+              >
+                <Twitter size={18} />
+              </a>
+              <a
+                href="#contact"
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleOpenModal('General Inquiry');
+                }}
+                aria-label="Email Us"
+                className="w-10 h-10 rounded-full bg-[#1e301d] hover:bg-[#d2dbc8] text-white hover:text-[#1c2c19] border border-[#2e472a] flex items-center justify-center transition-all cursor-pointer"
+              >
+                <Mail size={18} />
+              </a>
+            </div>
+          </div>
+
+          {/* Right Columns: Links */}
+          <div className="lg:col-span-7 grid grid-cols-2 sm:grid-cols-3 gap-8">
+            {/* Column 1: Find Therapy */}
+            <div>
+              <h4 className="text-xs sm:text-sm font-bold text-white uppercase tracking-wider mb-4">
+                Find Therapy
+              </h4>
+              <ul className="space-y-3 text-xs sm:text-sm text-[#a4bc87]">
+                <li>
+                  <button
+                    onClick={() => handleOpenModal('Individual Therapy')}
+                    className="hover:text-white transition-colors cursor-pointer text-left"
+                  >
+                    Explore Therapists
+                  </button>
+                </li>
+                <li>
+                  <button
+                    onClick={() => handleOpenModal('Couples Therapy')}
+                    className="hover:text-white transition-colors cursor-pointer text-left"
+                  >
+                    Couples Counseling
+                  </button>
+                </li>
+                <li>
+                  <button
+                    onClick={() => handleOpenModal('Online Sessions')}
+                    className="hover:text-white transition-colors cursor-pointer text-left"
+                  >
+                    Online Messaging
+                  </button>
+                </li>
+                <li>
+                  <button
+                    onClick={() => handleOpenModal('Mental Wellness')}
+                    className="hover:text-white transition-colors cursor-pointer text-left"
+                  >
+                    Self-Assessment Tools
+                  </button>
+                </li>
+              </ul>
+            </div>
+
+            {/* Column 2: Resources */}
+            <div>
+              <h4 className="text-xs sm:text-sm font-bold text-white uppercase tracking-wider mb-4">
+                Resources
+              </h4>
+              <ul className="space-y-3 text-xs sm:text-sm text-[#a4bc87]">
+                <li>
+                  <button
+                    onClick={() => handleOpenModal('Crisis Hotline')}
+                    className="hover:text-white transition-colors cursor-pointer text-left"
+                  >
+                    Crisis Hotline
+                  </button>
+                </li>
+                <li>
+                  <a href="#about" className="hover:text-white transition-colors">
+                    Learn More
+                  </a>
+                </li>
+                <li>
+                  <button
+                    onClick={() => handleOpenModal('New Account')}
+                    className="hover:text-white transition-colors cursor-pointer text-left"
+                  >
+                    Sign up
+                  </button>
+                </li>
+                <li>
+                  <a href="#faq" className="hover:text-white transition-colors">
+                    FAQs & Support
+                  </a>
+                </li>
+              </ul>
+            </div>
+
+            {/* Column 3: Company */}
+            <div>
+              <h4 className="text-xs sm:text-sm font-bold text-[#b4c898] uppercase tracking-wider mb-4">
+                Company
+              </h4>
+              <ul className="space-y-3 text-xs sm:text-sm text-[#a4bc87]">
+                <li>
+                  <a href="#about" className="hover:text-white transition-colors">
+                    About us
+                  </a>
+                </li>
+                <li>
+                  <a href="#careers" className="hover:text-white transition-colors">
+                    Careers
+                  </a>
+                </li>
+                <li>
+                  <button
+                    onClick={() => handleOpenModal('General Inquiry')}
+                    className="hover:text-white transition-colors cursor-pointer text-left"
+                  >
+                    Contact
+                  </button>
+                </li>
+                <li>
+                  <a href="#privacy" className="hover:text-white transition-colors">
+                    Privacy Policy
+                  </a>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        {/* Massive Lower Branding Typography */}
+        <div className="pt-8 sm:pt-12 text-center select-none overflow-hidden">
+          <h1 className="footer-brand-title text-[18vw] leading-[0.8] font-semibold text-white tracking-tighter font-['Plus_Jakarta_Sans'] opacity-95">
+            kind mind
+          </h1>
+        </div>
+
+        {/* Bottom Legal Bar */}
+        <div className="mt-8 pt-6 border-t border-[#1e301d] flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-[#8ea37a]">
+          <div>
+            © {new Date().getFullYear()} Kind Mind / Clarity Care Inc. All rights reserved.
+          </div>
+          <div className="flex items-center gap-6">
+            <a href="#terms" className="hover:text-white transition-colors">
+              Terms of Service
+            </a>
+            <a href="#privacy" className="hover:text-white transition-colors">
+              Privacy Policy
+            </a>
+            <a href="#cookies" className="hover:text-white transition-colors">
+              Cookie Preferences
+            </a>
+          </div>
+        </div>
+      </div>
+
+      {/* Interactive Contact Modal */}
+      <ContactModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        initialTopic={modalTopic}
+      />
+    </footer>
+  );
+};
+

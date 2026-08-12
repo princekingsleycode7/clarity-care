@@ -1,0 +1,6 @@
+{
+  "name": "Clarity Care",
+  "description": "Mental health and therapy service landing page hero section.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
