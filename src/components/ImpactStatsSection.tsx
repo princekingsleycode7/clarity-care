@@ -96,7 +96,7 @@ export const ImpactStatsSection: React.FC = () => {
         {/* Right Side: Mission Statement & Core Value Pills */}
         <div className="flex flex-col items-start space-y-6 max-w-2xl">
           <p className="stat-text text-2xl sm:text-3xl md:text-[34px] lg:text-[38px] font-semibold text-[#1c2c19] leading-[1.22] tracking-tight font-['Plus_Jakarta_Sans']">
-            At Clarity Care, we're dedicated to helping individuals live more fulfilling lives. Our licensed therapists bring empathy.
+            At Clover Heart Haven, we're dedicated to helping individuals live more fulfilling lives. Our licensed therapists bring empathy.
           </p>
 
           {/* Values Row with Dividers */}

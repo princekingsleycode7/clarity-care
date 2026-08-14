@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import feelingBetterBg from '../assets/images/user_bg.jpg';
+import feelingBetterBg from '../assets/images/feeling_better_bg.png';
 import { ContactModal } from './ContactModal';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -78,31 +78,33 @@ export const MessageSection: React.FC = () => {
 
       {/* Main Content Area */}
       <div className="relative z-10 max-w-7xl mx-auto w-full my-auto py-6 sm:py-10">
-        {/* Split Typography Headline */}
+        {/* Split Typography Headline with Open Center Gap Framing Her Face */}
         <div className="w-full">
-          {/* Row 1: 'feeling better' on left, 'starts' on right */}
-          <div className="flex flex-wrap items-baseline justify-between gap-x-4 w-full">
-            <h2 className="msg-headline text-4xl sm:text-6xl md:text-7xl lg:text-[90px] xl:text-[105px] font-normal text-white tracking-tight leading-none font-['Plus_Jakarta_Sans'] drop-shadow-md">
+          {/* Row 1: 'feeling better' on left, open gap for face in center, 'starts' on right */}
+          <div className="flex items-baseline justify-between gap-4 sm:gap-8 md:gap-12 lg:gap-16 w-full">
+            <h2 className="msg-headline text-3xl sm:text-5xl md:text-6xl lg:text-[78px] xl:text-[94px] font-normal text-white tracking-tight leading-none font-['Plus_Jakarta_Sans'] drop-shadow-lg whitespace-nowrap">
               feeling better
             </h2>
-            <h2 className="msg-headline text-4xl sm:text-6xl md:text-7xl lg:text-[90px] xl:text-[105px] font-normal text-white tracking-tight leading-none font-['Plus_Jakarta_Sans'] drop-shadow-md">
+            {/* Center face clearance spacer */}
+            <div className="hidden sm:block flex-1 min-w-[80px] md:min-w-[180px] lg:min-w-[260px] pointer-events-none" aria-hidden="true" />
+            <h2 className="msg-headline text-3xl sm:text-5xl md:text-6xl lg:text-[78px] xl:text-[94px] font-normal text-white tracking-tight leading-none font-['Plus_Jakarta_Sans'] drop-shadow-lg whitespace-nowrap text-right">
               starts
             </h2>
           </div>
 
-          {/* Row 2: 'with a single message' */}
-          <div className="flex justify-end w-full -mt-1 sm:-mt-3 md:-mt-5">
-            <h2 className="msg-headline text-4xl sm:text-6xl md:text-7xl lg:text-[90px] xl:text-[105px] font-normal text-white tracking-tight leading-none font-['Plus_Jakarta_Sans'] drop-shadow-md">
+          {/* Row 2: 'with a single message' placed to the right */}
+          <div className="flex justify-end w-full mt-2 sm:mt-3 md:mt-5">
+            <h2 className="msg-headline text-3xl sm:text-5xl md:text-6xl lg:text-[78px] xl:text-[94px] font-normal text-white tracking-tight leading-none font-['Plus_Jakarta_Sans'] drop-shadow-lg text-right">
               with a single message
             </h2>
           </div>
         </div>
 
         {/* Sub-content & CTA Row */}
-        <div className="msg-subcontent mt-8 sm:mt-12 md:mt-16 grid grid-cols-1 lg:grid-cols-12 gap-6 items-end">
-          {/* Left Column: Subtext & Action Pills */}
-          <div className="lg:col-span-8 flex flex-col items-start space-y-5 sm:space-y-6">
-            <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 sm:gap-6 text-xs sm:text-sm text-white/90 max-w-2xl">
+        <div className="msg-subcontent mt-8 sm:mt-12 md:mt-16 flex flex-col sm:flex-row sm:items-end justify-between gap-6">
+          {/* Subtext & Action Pills */}
+          <div className="flex flex-col items-start space-y-5 sm:space-y-6 max-w-2xl">
+            <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 sm:gap-6 text-xs sm:text-sm text-white/90">
               <span className="sm:col-span-4 text-xs font-semibold text-white/90 tracking-tight leading-tight">
                 You deserve to be happy
               </span>
@@ -128,14 +130,6 @@ export const MessageSection: React.FC = () => {
                 Couples Therapy
               </button>
             </div>
-          </div>
-
-          {/* Right Column: Press / Media Logos */}
-          <div className="lg:col-span-4 flex flex-wrap items-center justify-start lg:justify-end gap-4 sm:gap-5 text-white/80 text-xs sm:text-sm font-bold tracking-wider uppercase pt-4 lg:pt-0">
-            <span className="hover:text-white transition-colors cursor-default">OCBS</span>
-            <span className="hover:text-white transition-colors cursor-default font-serif lowercase italic text-sm sm:text-base">the new york times</span>
-            <span className="hover:text-white transition-colors cursor-default tracking-widest text-[10px] sm:text-[11px]">Bloomberg</span>
-            <span className="hover:text-white transition-colors cursor-default tracking-widest text-[10px] sm:text-[11px]">MOTHERBOARD</span>
           </div>
         </div>
       </div>

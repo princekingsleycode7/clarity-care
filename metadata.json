@@ -1,6 +1,7 @@
 {
-  "name": "Clarity Care",
-  "description": "Mental health and therapy service landing page hero section.",
+  "name": "Clover Heart Haven",
+  "description": "Clover Heart Haven — Compassionate mental health, therapy, and wellness support platform.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
+

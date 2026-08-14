@@ -89,7 +89,7 @@ export const TherapistSection: React.FC = () => {
       author: 'INES K.',
       role: 'Verified Client',
       avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200',
-      fullReview: 'Clarity Care changed my daily routine and mental clarity completely. My therapist is attentive and deeply empathetic.',
+      fullReview: 'Clover Heart Haven changed my daily routine and mental peace completely. My therapist is attentive and deeply empathetic.',
       rating: 5,
     },
     {
@@ -116,7 +116,7 @@ export const TherapistSection: React.FC = () => {
       author: 'CLARA M.',
       role: 'Verified Client',
       avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=200',
-      fullReview: 'Compassionate, flexible, and completely confidential. I recommend Clarity Care to everyone.',
+      fullReview: 'Compassionate, flexible, and completely confidential. I recommend Clover Heart Haven to everyone.',
       rating: 5,
     },
   ];

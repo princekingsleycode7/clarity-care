@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Navbar } from './Navbar';
 import { ContactModal } from './ContactModal';
-import heroBgImage from '../assets/images/therapy_hero_bg_1786463572775.jpg';
+import heroBgImage from '../assets/images/hero_custom_bg.png';
 import therapistAvatar from '../assets/images/licensed_therapist_session_1786464568739.jpg';
 import supportAvatar from '../assets/images/therapy_support_woman_1786464396553.jpg';
 import { Star, ShieldCheck, ArrowRight } from 'lucide-react';

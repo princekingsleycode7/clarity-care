@@ -54,7 +54,7 @@ export const ContactModal: React.FC<ContactModalProps> = ({
               Call Request Received
             </h3>
             <p className="text-slate-600 text-sm max-w-xs mb-6">
-              Thank you, <span className="font-semibold text-slate-800">{formData.name || 'friend'}</span>. One of our Clarity Care specialists will reach out to you shortly.
+              Thank you, <span className="font-semibold text-slate-800">{formData.name || 'friend'}</span>. One of our Clover Heart Haven specialists will reach out to you shortly.
             </p>
             <div className="w-full bg-[#f2f6ee] p-4 rounded-2xl text-left text-xs text-slate-600 space-y-1.5 mb-6">
               <p className="flex justify-between">

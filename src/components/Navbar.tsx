@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Menu, X } from 'lucide-react';
+import logoImg from '../assets/images/original_logo.png';
 
 interface NavbarProps {
   onContactClick: () => void;
@@ -27,26 +28,18 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Brand Logo */}
         <div 
           onClick={() => setActiveNav('Home')}
-          className="flex items-center gap-2 cursor-pointer group"
+          className="flex items-center gap-2 sm:gap-2.5 cursor-pointer group"
         >
-          <div className="w-5 h-5 flex items-center justify-center text-[#d2dbc8] group-hover:rotate-12 transition-transform duration-300">
-            <svg 
-              className="w-4 h-4" 
-              viewBox="0 0 24 24" 
-              fill="none" 
-              stroke="currentColor" 
-              strokeWidth="2.2" 
-              strokeLinecap="round" 
-              strokeLinejoin="round"
-            >
-              <path d="M12 3C9.5 3 7.5 5 7.5 7.5C7.5 10 12 12 12 12C12 12 16.5 10 16.5 7.5C16.5 5 14.5 3 12 3Z" fill="#d2dbc8" fillOpacity="0.2"/>
-              <path d="M12 21C9.5 21 7.5 19 7.5 16.5C7.5 14 12 12 12 12C12 12 16.5 14 16.5 16.5C16.5 19 14.5 21 12 21Z" fill="#d2dbc8" fillOpacity="0.2"/>
-              <path d="M3 12C3 9.5 5 7.5 7.5 7.5C10 7.5 12 12 12 12C12 12 10 16.5 7.5 16.5C5 16.5 3 14.5 3 12Z" fill="#d2dbc8" fillOpacity="0.2"/>
-              <path d="M21 12C21 9.5 19 7.5 16.5 7.5C14 7.5 12 12 12 12C12 12 14 16.5 16.5 16.5C19 16.5 21 14.5 21 12Z" fill="#d2dbc8" fillOpacity="0.2"/>
-            </svg>
+          <div className="w-9 h-7 sm:w-11 sm:h-8 flex items-center justify-center overflow-visible">
+            <img 
+              src={logoImg} 
+              alt="Clover Heart Haven Logo" 
+              className="w-full h-full object-contain scale-125 group-hover:scale-135 transition-transform duration-300 filter drop-shadow-sm"
+              referrerPolicy="no-referrer"
+            />
           </div>
-          <span className="font-semibold text-xs sm:text-sm tracking-tight text-white font-['Plus_Jakarta_Sans']">
-            Clarity Care
+          <span className="font-bold text-xs sm:text-sm tracking-tight text-white font-['Plus_Jakarta_Sans'] group-hover:text-[#d2dbc8] transition-colors">
+            Clover Heart Haven
           </span>
         </div>
 

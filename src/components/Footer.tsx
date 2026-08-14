@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Instagram, Twitter, Mail, ArrowUpRight, Check } from 'lucide-react';
 import { ContactModal } from './ContactModal';
+import logoImg from '../assets/images/original_logo.png';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
@@ -32,7 +33,7 @@ export const Footer: React.FC = () => {
         }
       );
 
-      // Giant 'kind mind' title scaling reveal
+      // Giant 'clover heart haven' title scaling reveal
       gsap.fromTo(
         '.footer-brand-title',
         { scale: 0.9, y: 30, opacity: 0 },
@@ -75,11 +76,27 @@ export const Footer: React.FC = () => {
       <div className="max-w-7xl mx-auto">
         {/* Top Section: Newsletter & Links Columns */}
         <div className="footer-top-block grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 pb-16 border-b border-[#253e23]">
-          {/* Left Block: Tagline, Email Form & Socials */}
+          {/* Left Block: Brand, Tagline, Email Form & Socials */}
           <div className="lg:col-span-5 flex flex-col justify-between space-y-6">
             <div>
-              <div className="text-sm font-semibold text-[#b4c898] uppercase tracking-widest mb-4">
-                Care Different ™
+              {/* Brand Logo & Title */}
+              <div className="flex items-center gap-3.5 mb-4">
+                <div className="w-12 h-10 sm:w-14 sm:h-12 flex items-center justify-center overflow-visible">
+                  <img 
+                    src={logoImg} 
+                    alt="Clover Heart Haven Logo" 
+                    className="w-full h-full object-contain scale-125 hover:scale-135 transition-transform duration-300 filter drop-shadow-md"
+                    referrerPolicy="no-referrer"
+                  />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white font-['Plus_Jakarta_Sans'] leading-tight">
+                    Clover Heart Haven
+                  </h3>
+                  <div className="text-[11px] font-medium text-[#b4c898] uppercase tracking-widest">
+                    Care Different ™
+                  </div>
+                </div>
               </div>
 
               {/* Email Input Form */}
@@ -255,15 +272,17 @@ export const Footer: React.FC = () => {
 
         {/* Massive Lower Branding Typography */}
         <div className="pt-8 sm:pt-12 text-center select-none overflow-hidden">
-          <h1 className="footer-brand-title text-[18vw] leading-[0.8] font-semibold text-white tracking-tighter font-['Plus_Jakarta_Sans'] opacity-95">
-            kind mind
+          <h1 className="footer-brand-title text-[10vw] md:text-[11vw] leading-[0.9] font-bold text-white tracking-tight font-['Plus_Jakarta_Sans'] opacity-95 flex items-center justify-center gap-3 sm:gap-6 flex-wrap">
+            <span>clover</span>
+            <span className="text-[#a4bc87]">heart</span>
+            <span>haven</span>
           </h1>
         </div>
 
         {/* Bottom Legal Bar */}
         <div className="mt-8 pt-6 border-t border-[#1e301d] flex flex-col sm:flex-row items-center justify-between gap-4 text-[11px] text-[#8ea37a]">
           <div>
-            © {new Date().getFullYear()} Kind Mind / Clarity Care Inc. All rights reserved.
+            © {new Date().getFullYear()} Clover Heart Haven Inc. All rights reserved.
           </div>
           <div className="flex items-center gap-6">
             <a href="#terms" className="hover:text-white transition-colors">
