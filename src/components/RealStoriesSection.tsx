@@ -136,6 +136,7 @@ export const RealStoriesSection: React.FC = () => {
 
   return (
     <section 
+      id="stories"
       ref={sectionRef} 
       className="relative w-full min-h-screen lg:h-screen lg:max-h-screen bg-[#142213] text-white p-3.5 sm:p-5 md:p-6 lg:p-8 flex flex-col justify-between transition-colors duration-300 overflow-visible lg:overflow-hidden"
     >

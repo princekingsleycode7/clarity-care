@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { APP_ASSETS } from '../constants/assets';
 import feelingBetterBg from '../assets/images/feeling_better_bg.png';
 import { ContactModal } from './ContactModal';
 import gsap from 'gsap';
@@ -59,12 +60,12 @@ export const MessageSection: React.FC = () => {
   };
 
   return (
-    <section ref={sectionRef} className="relative w-full min-h-screen flex flex-col justify-between p-4 sm:p-8 md:p-12 lg:p-16 overflow-hidden text-white transition-all duration-300">
+    <section id="message" ref={sectionRef} className="relative w-full min-h-screen flex flex-col justify-between p-4 sm:p-8 md:p-12 lg:p-16 overflow-hidden text-white transition-all duration-300">
       {/* Background Image */}
       <div
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
         style={{
-          backgroundImage: `url(${feelingBetterBg})`,
+          backgroundImage: `url(${APP_ASSETS.feelingBetterBg}), url(${feelingBetterBg})`,
           backgroundPosition: 'center 20%',
         }}
       />

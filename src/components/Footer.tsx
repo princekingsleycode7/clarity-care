@@ -1,13 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Instagram, Twitter, Mail, ArrowUpRight, Check } from 'lucide-react';
 import { ContactModal } from './ContactModal';
+import { APP_ASSETS } from '../constants/assets';
 import logoImg from '../assets/images/original_logo.png';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
 gsap.registerPlugin(ScrollTrigger);
 
-export const Footer: React.FC = () => {
+interface FooterProps {
+  onNavigate?: (page: string) => void;
+}
+
+export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
   const [email, setEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -83,7 +88,10 @@ export const Footer: React.FC = () => {
               <div className="flex items-center gap-3.5 mb-4">
                 <div className="w-12 h-10 sm:w-14 sm:h-12 flex items-center justify-center overflow-visible">
                   <img 
-                    src={logoImg} 
+                    src={APP_ASSETS.logo} 
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).src = logoImg;
+                    }}
                     alt="Clover Heart Haven Logo" 
                     className="w-full h-full object-contain scale-125 hover:scale-135 transition-transform duration-300 filter drop-shadow-md"
                     referrerPolicy="no-referrer"
@@ -168,15 +176,15 @@ export const Footer: React.FC = () => {
               <ul className="space-y-3 text-xs sm:text-sm text-[#a4bc87]">
                 <li>
                   <button
-                    onClick={() => handleOpenModal('Individual Therapy')}
+                    onClick={() => onNavigate ? onNavigate('Service') : handleOpenModal('Individual Therapy')}
                     className="hover:text-white transition-colors cursor-pointer text-left"
                   >
-                    Explore Therapists
+                    Services & Techniques
                   </button>
                 </li>
                 <li>
                   <button
-                    onClick={() => handleOpenModal('Couples Therapy')}
+                    onClick={() => onNavigate ? onNavigate('Service') : handleOpenModal('Couples Therapy')}
                     className="hover:text-white transition-colors cursor-pointer text-left"
                   >
                     Couples Counseling
@@ -184,18 +192,18 @@ export const Footer: React.FC = () => {
                 </li>
                 <li>
                   <button
-                    onClick={() => handleOpenModal('Online Sessions')}
+                    onClick={() => onNavigate ? onNavigate('About') : handleOpenModal('Dr. Vance')}
                     className="hover:text-white transition-colors cursor-pointer text-left"
                   >
-                    Online Messaging
+                    About Dr. Elena Vance
                   </button>
                 </li>
                 <li>
                   <button
-                    onClick={() => handleOpenModal('Mental Wellness')}
+                    onClick={() => onNavigate ? onNavigate('Reviews') : handleOpenModal('Reviews')}
                     className="hover:text-white transition-colors cursor-pointer text-left"
                   >
-                    Self-Assessment Tools
+                    Client Reviews & Stories
                   </button>
                 </li>
               </ul>
@@ -208,30 +216,36 @@ export const Footer: React.FC = () => {
               </h4>
               <ul className="space-y-3 text-xs sm:text-sm text-[#a4bc87]">
                 <li>
-                  <button
-                    onClick={() => handleOpenModal('Crisis Hotline')}
-                    className="hover:text-white transition-colors cursor-pointer text-left"
+                  <a 
+                    href="tel:988"
+                    className="hover:text-white transition-colors cursor-pointer text-left flex items-center gap-1 text-[#f6ad55]"
                   >
-                    Crisis Hotline
-                  </button>
-                </li>
-                <li>
-                  <a href="#about" className="hover:text-white transition-colors">
-                    Learn More
+                    Crisis Hotline (988)
                   </a>
                 </li>
                 <li>
-                  <button
-                    onClick={() => handleOpenModal('New Account')}
-                    className="hover:text-white transition-colors cursor-pointer text-left"
+                  <button 
+                    onClick={() => onNavigate ? onNavigate('About') : handleOpenModal('About')}
+                    className="hover:text-white transition-colors text-left cursor-pointer"
                   >
-                    Sign up
+                    Doctor Credentials & FAQ
                   </button>
                 </li>
                 <li>
-                  <a href="#faq" className="hover:text-white transition-colors">
-                    FAQs & Support
-                  </a>
+                  <button
+                    onClick={() => handleOpenModal('Free Consultation')}
+                    className="hover:text-white transition-colors cursor-pointer text-left"
+                  >
+                    Book Consultation
+                  </button>
+                </li>
+                <li>
+                  <button 
+                    onClick={() => onNavigate ? onNavigate('About') : handleOpenModal('FAQ')}
+                    className="hover:text-white transition-colors text-left cursor-pointer"
+                  >
+                    Therapy Techniques FAQ
+                  </button>
                 </li>
               </ul>
             </div>
@@ -243,27 +257,36 @@ export const Footer: React.FC = () => {
               </h4>
               <ul className="space-y-3 text-xs sm:text-sm text-[#a4bc87]">
                 <li>
-                  <a href="#about" className="hover:text-white transition-colors">
-                    About us
-                  </a>
-                </li>
-                <li>
-                  <a href="#careers" className="hover:text-white transition-colors">
-                    Careers
-                  </a>
-                </li>
-                <li>
-                  <button
-                    onClick={() => handleOpenModal('General Inquiry')}
-                    className="hover:text-white transition-colors cursor-pointer text-left"
+                  <button 
+                    onClick={() => onNavigate ? onNavigate('About') : handleOpenModal('About')}
+                    className="hover:text-white transition-colors text-left cursor-pointer"
                   >
-                    Contact
+                    About Practice
                   </button>
                 </li>
                 <li>
-                  <a href="#privacy" className="hover:text-white transition-colors">
-                    Privacy Policy
-                  </a>
+                  <button 
+                    onClick={() => onNavigate ? onNavigate('Reviews') : handleOpenModal('Reviews')}
+                    className="hover:text-white transition-colors text-left cursor-pointer"
+                  >
+                    Patient Testimonials
+                  </button>
+                </li>
+                <li>
+                  <button
+                    onClick={() => onNavigate ? onNavigate('Contact') : handleOpenModal('General Inquiry')}
+                    className="hover:text-white transition-colors cursor-pointer text-left"
+                  >
+                    Contact & Directions
+                  </button>
+                </li>
+                <li>
+                  <button 
+                    onClick={() => handleOpenModal('Privacy Policy & HIPAA')}
+                    className="hover:text-white transition-colors text-left cursor-pointer"
+                  >
+                    HIPAA Privacy Pledge
+                  </button>
                 </li>
               </ul>
             </div>

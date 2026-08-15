@@ -53,7 +53,7 @@ export const SupportSection: React.FC = () => {
   }, []);
 
   return (
-    <section ref={sectionRef} className="w-full bg-[#f4f2e8] text-[#1f1a14] py-14 sm:py-20 md:py-24 px-4 sm:px-8 md:px-12 lg:px-16 transition-colors duration-300 overflow-hidden">
+    <section id="support" ref={sectionRef} className="w-full bg-[#f4f2e8] text-[#1f1a14] py-14 sm:py-20 md:py-24 px-4 sm:px-8 md:px-12 lg:px-16 transition-colors duration-300 overflow-hidden">
       <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-center">
         {/* Left Column: Text & Stats & CTA */}
         <div className="support-content lg:col-span-6 xl:col-span-6 flex flex-col items-start pr-0 lg:pr-4">

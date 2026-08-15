@@ -122,7 +122,7 @@ export const TherapistSection: React.FC = () => {
   ];
 
   return (
-    <section ref={sectionRef} className="w-full bg-[#f4f2e8] text-[#1f1a14] py-12 sm:py-16 md:py-20 px-4 sm:px-8 md:px-12 lg:px-16 border-t border-[#e2decb] overflow-hidden">
+    <section id="therapist" ref={sectionRef} className="w-full bg-[#f4f2e8] text-[#1f1a14] py-12 sm:py-16 md:py-20 px-4 sm:px-8 md:px-12 lg:px-16 border-t border-[#e2decb] overflow-hidden">
       <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-center">
         {/* LEFT COLUMN: Therapist Image with Floating Google Rating */}
         <div className="lg:col-span-6 w-full flex justify-center lg:justify-start relative order-2 lg:order-1">

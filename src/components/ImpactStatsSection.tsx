@@ -68,7 +68,7 @@ export const ImpactStatsSection: React.FC = () => {
   }, []);
 
   return (
-    <section ref={sectionRef} className="w-full bg-[#d2dbc8] text-[#1c2c19] py-12 sm:py-16 md:py-20 px-4 sm:px-8 md:px-12 lg:px-16 transition-colors duration-300 overflow-hidden">
+    <section id="impact" ref={sectionRef} className="w-full bg-[#d2dbc8] text-[#1c2c19] py-12 sm:py-16 md:py-20 px-4 sm:px-8 md:px-12 lg:px-16 transition-colors duration-300 overflow-hidden">
       <div className="max-w-7xl mx-auto flex flex-col lg:flex-row items-center justify-between gap-10 lg:gap-14">
         {/* Left Side: Overlapping Dark Green Stat Circles */}
         <div className="flex items-center justify-center shrink-0">

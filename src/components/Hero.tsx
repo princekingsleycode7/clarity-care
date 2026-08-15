@@ -1,16 +1,20 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Navbar } from './Navbar';
 import { ContactModal } from './ContactModal';
+import { APP_ASSETS } from '../constants/assets';
 import heroBgImage from '../assets/images/hero_custom_bg.png';
 import therapistAvatar from '../assets/images/licensed_therapist_session_1786464568739.jpg';
 import supportAvatar from '../assets/images/therapy_support_woman_1786464396553.jpg';
 import { Star, ShieldCheck, ArrowRight } from 'lucide-react';
 import gsap from 'gsap';
 
-export const Hero: React.FC = () => {
-  const [isModalOpen, setIsModalOpen] = useState(false);
+interface HeroProps {
+  onOpenConsultation: (topic?: string) => void;
+  onNavigate?: (nav: string) => void;
+}
+
+export const Hero: React.FC<HeroProps> = ({ onOpenConsultation, onNavigate }) => {
   const [selectedTopic, setSelectedTopic] = useState<string>('Gain Clarity');
-  const [activeNav, setActiveNav] = useState('Home');
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const heroRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -93,16 +97,20 @@ export const Hero: React.FC = () => {
 
   const handleBadgeClick = (topicLabel: string) => {
     setSelectedTopic(topicLabel);
-    setIsModalOpen(true);
+    if (onOpenConsultation) {
+      onOpenConsultation(topicLabel);
+    } else {
+      setIsModalOpen(true);
+    }
   };
 
   return (
-    <div ref={heroRef} className="relative w-full h-screen min-h-[600px] flex flex-col justify-between overflow-hidden">
+    <div id="home" ref={heroRef} className="relative w-full h-screen min-h-[620px] flex flex-col justify-between overflow-hidden">
       {/* Background Image Container */}
       <div 
-        className="relative w-full h-full flex flex-col justify-between px-3 py-2 sm:px-6 sm:py-3 md:px-8 md:py-4 transition-all duration-500 bg-cover bg-center"
+        className="relative w-full h-full flex flex-col justify-between px-3 py-2 sm:px-6 sm:py-4 md:px-8 md:py-6 transition-all duration-500 bg-cover bg-center"
         style={{
-          backgroundImage: `url(${heroBgImage})`,
+          backgroundImage: `url(${APP_ASSETS.heroBg}), url(${heroBgImage})`,
           backgroundPosition: 'center 35%',
         }}
       >
@@ -110,38 +118,11 @@ export const Hero: React.FC = () => {
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/30 pointer-events-none" />
         <div className="absolute inset-0 bg-black/20 pointer-events-none" />
 
-        {/* Floating Top Header Navigation */}
-        <div className="relative z-20">
-          <Navbar
-            onContactClick={() => {
-              setSelectedTopic('Gain Clarity');
-              setIsModalOpen(true);
-            }}
-            activeNav={activeNav}
-            setActiveNav={setActiveNav}
-          />
-        </div>
-
-        {/* Active Tab Preview Banner (If navigated away from Home) */}
-        {activeNav !== 'Home' && (
-          <div className="relative z-20 my-auto mx-auto max-w-md bg-[#1c2c19]/90 text-white p-5 rounded-2xl backdrop-blur-md shadow-xl border border-white/20 text-center animate-fade-in">
-            <h3 className="text-lg font-bold mb-1 font-['Plus_Jakarta_Sans']">
-              {activeNav} Section
-            </h3>
-            <p className="text-xs text-gray-300 mb-3">
-              Explore our personalized counseling services, compassionate care plans, and client testimonials.
-            </p>
-            <button
-              onClick={() => setActiveNav('Home')}
-              className="text-xs bg-white text-[#1c2c19] font-semibold px-3.5 py-1.5 rounded-full hover:bg-gray-100 transition-all cursor-pointer"
-            >
-              Back to Hero View
-            </button>
-          </div>
-        )}
+        {/* Top spacer to provide room for fixed floating navbar */}
+        <div className="h-16 sm:h-20" />
 
         {/* Bottom Hero Content Grid */}
-        <div className="relative z-20 mt-auto pt-6 sm:pt-10 pb-4 sm:pb-6 max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-6 items-end">
+        <div className="relative z-20 mt-auto pt-6 sm:pt-10 pb-6 sm:pb-8 max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-6 items-end">
           {/* Left Column: Badges, Headline & Trust Card */}
           <div className="lg:col-span-7 flex flex-col items-start space-y-3 sm:space-y-4">
             {/* Pill Badges */}
@@ -203,8 +184,11 @@ export const Hero: React.FC = () => {
             <button
               id="cta-btn"
               onClick={() => {
-                setSelectedTopic('General Therapy');
-                setIsModalOpen(true);
+                if (onOpenConsultation) {
+                  onOpenConsultation('General Therapy');
+                } else {
+                  setIsModalOpen(true);
+                }
               }}
               className="bg-white hover:bg-[#eef4ea] text-[#1c2c19] text-xs sm:text-sm font-bold px-5 py-2.5 sm:px-6 sm:py-3 rounded-full transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-105 active:scale-95 cursor-pointer flex items-center gap-2"
             >
@@ -215,7 +199,7 @@ export const Hero: React.FC = () => {
         </div>
       </div>
 
-      {/* Interactive Consultation Modal */}
+      {/* Fallback modal if not controlled from parent */}
       <ContactModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -224,4 +208,3 @@ export const Hero: React.FC = () => {
     </div>
   );
 };
-
