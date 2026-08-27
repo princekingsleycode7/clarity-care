@@ -3,6 +3,7 @@ import { Navbar } from './components/Navbar';
 import { Hero } from './components/Hero';
 import { ImpactStatsSection } from './components/ImpactStatsSection';
 import { SupportSection } from './components/SupportSection';
+import { WhatWeHelpWithSection } from './components/WhatWeHelpWithSection';
 import { TherapistSection } from './components/TherapistSection';
 import { RealStoriesSection } from './components/RealStoriesSection';
 import { MessageSection } from './components/MessageSection';
@@ -96,8 +97,9 @@ export default function App() {
               onOpenConsultation={handleOpenConsultation}
               onNavigate={handleNavChange}
             />
-            <ImpactStatsSection />
+            <ImpactStatsSection onOpenConsultation={() => handleOpenConsultation('Talk To Someone - Clarity Consultation')} />
             <SupportSection />
+            <WhatWeHelpWithSection />
             <TherapistSection />
             <RealStoriesSection />
             <MessageSection />

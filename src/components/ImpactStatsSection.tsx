@@ -1,11 +1,15 @@
 import React, { useEffect, useRef } from 'react';
-import { Users, Heart, Sprout } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
 gsap.registerPlugin(ScrollTrigger);
 
-export const ImpactStatsSection: React.FC = () => {
+interface ImpactStatsSectionProps {
+  onOpenConsultation?: () => void;
+}
+
+export const ImpactStatsSection: React.FC<ImpactStatsSectionProps> = ({ onOpenConsultation }) => {
   const sectionRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -93,35 +97,44 @@ export const ImpactStatsSection: React.FC = () => {
           </div>
         </div>
 
-        {/* Right Side: Mission Statement & Core Value Pills */}
+        {/* Right Side: Emotional Narrative & Understanding */}
         <div className="flex flex-col items-start space-y-6 max-w-2xl">
-          <p className="stat-text text-2xl sm:text-3xl md:text-[34px] lg:text-[38px] font-semibold text-[#1c2c19] leading-[1.22] tracking-tight font-['Plus_Jakarta_Sans']">
-            At Clover Heart Haven, we're dedicated to helping individuals live more fulfilling lives. Our licensed therapists bring empathy.
-          </p>
-
-          {/* Values Row with Dividers */}
-          <div className="flex flex-wrap items-center gap-4 sm:gap-6 pt-2 text-[#1c2c19] text-xs sm:text-sm font-semibold">
-            {/* Value 1 */}
-            <div className="stat-value flex items-center gap-2">
-              <Users size={18} className="text-[#1c2c19]" />
-              <span>Compassion</span>
+          {/* Staggered Repetition Thought Loops */}
+          <div className="space-y-2.5 stat-text">
+            <p className="text-xl sm:text-2xl md:text-[26px] font-semibold text-[#1c2c19] leading-snug tracking-tight font-['Plus_Jakarta_Sans']">
+              But you're still checking your phone.
+            </p>
+            <div className="space-y-1.5 text-base sm:text-lg md:text-xl text-[#2d4029] font-medium leading-snug">
+              <p>Still replaying the conversation.</p>
+              <p>Still wondering what you did wrong.</p>
+              <p>Still thinking about what could have been.</p>
+              <p>Still trying to understand why letting go feels harder than it should.</p>
             </div>
+          </div>
 
-            <div className="hidden sm:block w-[1px] h-4 bg-[#1c2c19]/30" />
+          {/* Pivot & Validation Statement */}
+          <div className="stat-text pt-2 border-l-2 border-[#1c2c19]/30 pl-4 space-y-2">
+            <p className="text-sm sm:text-base text-[#465a41] italic font-medium">
+              And maybe you're tired of people telling you: <span className="font-semibold text-[#1c2c19]">“Just move on.”</span>
+            </p>
+            <p className="text-lg sm:text-xl md:text-2xl font-bold text-[#1c2c19] leading-snug font-['Plus_Jakarta_Sans']">
+              You don't need another person telling you to move on.
+            </p>
+            <p className="text-lg sm:text-xl md:text-2xl font-bold text-[#2d4728] leading-snug font-['Plus_Jakarta_Sans']">
+              You need space to understand what you're carrying.
+            </p>
+          </div>
 
-            {/* Value 2 */}
-            <div className="stat-value flex items-center gap-2">
-              <Heart size={18} className="text-[#1c2c19]" />
-              <span>Integrity</span>
-            </div>
-
-            <div className="hidden sm:block w-[1px] h-4 bg-[#1c2c19]/30" />
-
-            {/* Value 3 */}
-            <div className="stat-value flex items-center gap-2">
-              <Sprout size={18} className="text-[#1c2c19]" />
-              <span>Mind Growth</span>
-            </div>
+          {/* Call to Action: Talk To Someone */}
+          <div className="stat-value pt-2">
+            <button
+              type="button"
+              onClick={onOpenConsultation}
+              className="inline-flex items-center gap-2 bg-[#1c2c19] hover:bg-[#283d24] text-white text-xs sm:text-sm md:text-base font-bold px-6 py-3.5 sm:px-7 sm:py-4 rounded-full transition-all duration-300 shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] cursor-pointer tracking-wide font-['Plus_Jakarta_Sans'] group"
+            >
+              <span>Talk To Someone</span>
+              <ArrowRight size={18} className="text-white group-hover:translate-x-0.5 transition-transform" />
+            </button>
           </div>
         </div>
       </div>

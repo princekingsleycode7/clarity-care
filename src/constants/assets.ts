@@ -4,7 +4,7 @@ export const APP_ASSETS = {
   logo: 'https://res.cloudinary.com/dsgk1zlj1/image/upload/v1786751973/DFG-removebg-preview_wjywvj.png',
   
   // Hero section background image
-  heroBg: 'https://res.cloudinary.com/dsgk1zlj1/image/upload/v1786751975/Gemini_Generated_Image_jv8v9gjv8v9gjv8v_ilhqna.png',
+  heroBg: 'https://res.cloudinary.com/dsgk1zlj1/image/upload/v1787853056/file_000000001a2881f4928a37ec2c485a55_sauqtf.png',
   
   // "Feeling Better Starts With A Single Message" Section Background
   feelingBetterBg: 'https://res.cloudinary.com/dsgk1zlj1/image/upload/v1786751975/Gemini_Generated_Image_axz5gzaxz5gzaxz5_o1bofg.png',

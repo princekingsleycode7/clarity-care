@@ -197,23 +197,23 @@ export const Navbar: React.FC<NavbarProps> = ({
             </span>
           </button>
 
-          {/* Active Section / Page Indicator Pill (Pie/Capsule badge) */}
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 border border-white/10 text-xs font-semibold text-[#d2dbc8]">
-            <span className="w-2 h-2 rounded-full bg-[#82c974] animate-pulse" />
-            <span className="truncate max-w-[130px] sm:max-w-[200px] text-white">
+          {/* Active Section / Page Indicator Pill */}
+          <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full bg-white/10 border border-white/10 text-xs font-semibold text-[#d2dbc8]">
+            <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-[#82c974] animate-pulse shrink-0" />
+            <span className="truncate max-w-[100px] sm:max-w-[140px] lg:max-w-[180px] text-white">
               {getDisplayActiveName()}
             </span>
           </div>
 
-          {/* Quick Nav Pills (Desktop) */}
-          <div className="hidden sm:flex items-center gap-1">
+          {/* Quick Nav Pills (Desktop only on large screens to keep tab compact and elegant) */}
+          <div className="hidden lg:flex items-center gap-1">
             {navItems.map((item) => {
               const isActive = activeNav === item.id;
               return (
                 <button
                   key={item.id}
                   onClick={() => handleNavClick(item.id)}
-                  className={`px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+                  className={`px-2.5 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
                     isActive
                       ? 'bg-[#a4bc87] text-[#1c2c19] shadow-sm font-bold'
                       : 'text-gray-300 hover:text-white hover:bg-white/10'
@@ -228,15 +228,15 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Quick Action Button */}
           <button
             onClick={onContactClick}
-            className="bg-white text-[#1c2c19] hover:bg-[#eef4ea] px-3.5 py-1 sm:px-4 sm:py-1.5 rounded-full text-xs font-bold transition-all shadow-sm hover:scale-105 active:scale-95 cursor-pointer whitespace-nowrap"
+            className="bg-white text-[#1c2c19] hover:bg-[#eef4ea] px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full text-xs font-bold transition-all shadow-sm hover:scale-105 active:scale-95 cursor-pointer whitespace-nowrap"
           >
             Book Now
           </button>
 
-          {/* Mobile Menu Opener on Minimized Bar */}
+          {/* Menu Opener on Tablets & Mobile */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="sm:hidden p-1.5 text-gray-200 hover:text-white rounded-full bg-white/5"
+            className="lg:hidden p-1.5 text-gray-200 hover:text-white rounded-full bg-white/10 hover:bg-white/20 transition-colors cursor-pointer"
             aria-label="Open menu"
           >
             {mobileMenuOpen ? <X size={16} /> : <Menu size={16} />}
