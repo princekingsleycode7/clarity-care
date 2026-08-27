@@ -102,35 +102,29 @@ export const MessageSection: React.FC = () => {
         </div>
 
         {/* Sub-content & CTA Row */}
-        <div className="msg-subcontent mt-8 sm:mt-12 md:mt-16 flex flex-col sm:flex-row sm:items-end justify-between gap-6">
-          {/* Subtext & Action Pills */}
-          <div className="flex flex-col items-start space-y-5 sm:space-y-6 max-w-2xl">
-            <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 sm:gap-6 text-xs sm:text-sm text-white/90">
-              <span className="sm:col-span-4 text-xs font-semibold text-white/90 tracking-tight leading-tight">
-                You deserve to be happy
-              </span>
-              <p className="sm:col-span-8 font-normal leading-relaxed text-white/80 text-xs sm:text-sm">
-                Much more than live sessions and messaging. It's a complete happiness toolbox. Get matched with a qualified therapist within a minute.
-              </p>
-            </div>
+        <div className="msg-subcontent mt-8 sm:mt-12 md:mt-16 flex flex-col md:flex-row md:items-end justify-between gap-8 sm:gap-10">
+          {/* Large Narrative Lines */}
+          <div className="flex flex-col items-start space-y-2 sm:space-y-2.5 max-w-2xl text-left">
+            <p className="text-xl sm:text-2xl md:text-3xl lg:text-[32px] font-semibold text-white tracking-tight leading-snug font-['Plus_Jakarta_Sans']">
+              You don't have to carry everything alone.
+            </p>
+            <p className="text-lg sm:text-xl md:text-2xl lg:text-[28px] font-medium text-[#d2dbc8] tracking-tight leading-snug font-['Plus_Jakarta_Sans']">
+              You don't need to have the right words.
+            </p>
+            <p className="text-lg sm:text-xl md:text-2xl lg:text-[28px] font-medium text-[#e8f0e2] tracking-tight leading-snug font-['Plus_Jakarta_Sans']">
+              You just need somewhere safe to begin.
+            </p>
+          </div>
 
-            {/* Action Pills */}
-            <div className="flex flex-wrap items-center gap-3 pt-2">
-              <button
-                onClick={() => handleOpenModal('Individual Therapy')}
-                className="bg-white hover:bg-[#eef4ea] text-[#1c2c19] text-xs sm:text-sm font-semibold px-5 py-2.5 sm:px-6 sm:py-3 rounded-full transition-all duration-300 shadow-md hover:shadow-lg hover:scale-105 active:scale-95 cursor-pointer flex items-center gap-2"
-              >
-                <span>Individual Therapy</span>
-                <span className="text-base leading-none">→</span>
-              </button>
-
-              <button
-                onClick={() => handleOpenModal('Couples Therapy')}
-                className="bg-white/15 hover:bg-white/25 text-white border border-white/30 text-xs sm:text-sm font-semibold px-5 py-2.5 sm:px-6 sm:py-3 rounded-full backdrop-blur-md transition-all duration-300 hover:scale-105 active:scale-95 cursor-pointer"
-              >
-                Couples Therapy
-              </button>
-            </div>
+          {/* New Prominent CTA Button */}
+          <div className="shrink-0 pt-2 sm:pt-0">
+            <button
+              onClick={() => handleOpenModal('Free Private Clarity Call')}
+              className="inline-flex items-center gap-3 bg-[#e8ede2] hover:bg-white text-[#132212] text-xs sm:text-sm md:text-base font-bold px-7 py-4 sm:px-8 sm:py-4.5 rounded-full transition-all duration-300 shadow-2xl hover:shadow-white/20 hover:scale-105 active:scale-95 cursor-pointer uppercase tracking-wider font-['Plus_Jakarta_Sans'] group whitespace-nowrap"
+            >
+              <span>BOOK YOUR FREE PRIVATE CLARITY CALL</span>
+              <span className="text-lg leading-none group-hover:translate-x-1 transition-transform">→</span>
+            </button>
           </div>
         </div>
       </div>

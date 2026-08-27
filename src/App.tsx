@@ -5,7 +5,10 @@ import { ImpactStatsSection } from './components/ImpactStatsSection';
 import { SupportSection } from './components/SupportSection';
 import { WhatWeHelpWithSection } from './components/WhatWeHelpWithSection';
 import { TherapistSection } from './components/TherapistSection';
+import { BookingProcessSection } from './components/BookingProcessSection';
+import { TransitionShowcaseSection } from './components/TransitionShowcaseSection';
 import { RealStoriesSection } from './components/RealStoriesSection';
+import { FAQSection } from './components/FAQSection';
 import { MessageSection } from './components/MessageSection';
 import { AboutPage } from './components/AboutPage';
 import { ServicesPage } from './components/ServicesPage';
@@ -23,49 +26,98 @@ export default function App() {
   const [isConsultationModalOpen, setIsConsultationModalOpen] = useState<boolean>(false);
   const [consultationTopic, setConsultationTopic] = useState<string>('Gain Clarity');
 
-  // Track active section on Home page scroll
+  // Track active section on Home page scroll with high precision
   useEffect(() => {
     if (activeNav !== 'Home') {
       return;
     }
 
-    const sectionNames: Record<string, string> = {
-      home: 'Home Sanctuary',
-      impact: 'Impact & Growth',
-      support: 'Guidance & Support',
-      therapist: 'Dr. Elena & Practice',
-      stories: 'Verified Client Stories',
-      message: 'Wellness Journey',
-    };
+    const sections: { id: string; name: string }[] = [
+      { id: 'home', name: 'Home Sanctuary' },
+      { id: 'impact', name: 'Impact & Growth' },
+      { id: 'method', name: 'The Clover Method' },
+      { id: 'what-we-help-with', name: 'What We Help With' },
+      { id: 'therapist', name: 'Dr. Elena & Practice' },
+      { id: 'booking-process', name: 'What Happens When You Book' },
+      { id: 'healing', name: 'Healing & Clarity' },
+      { id: 'stories', name: '45 Client Stories' },
+      { id: 'faq', name: 'Frequently Asked Questions' },
+      { id: 'message', name: 'Feeling Better' },
+    ];
 
-    const sectionElements = Object.keys(sectionNames)
-      .map((id) => document.getElementById(id))
-      .filter((el): el is HTMLElement => el !== null);
+    let ticking = false;
 
-    if (sectionElements.length === 0) return;
+    const handleScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const scrollY = window.scrollY;
+          const viewportHeight = window.innerHeight;
+          const scrollBottom = scrollY + viewportHeight;
+          const docHeight = document.documentElement.scrollHeight;
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting && entry.intersectionRatio >= 0.25) {
-            const name = sectionNames[entry.target.id];
-            if (name) {
-              setActiveSection(name);
+          // If at the very top of the page
+          if (scrollY < 120) {
+            setActiveSection('Home Sanctuary');
+            ticking = false;
+            return;
+          }
+
+          // If at the very bottom of the page
+          if (scrollBottom >= docHeight - 80) {
+            setActiveSection('Feeling Better');
+            ticking = false;
+            return;
+          }
+
+          // Focus line at 38% down the viewport (ideal reading/viewing eye level)
+          const focusLine = viewportHeight * 0.38;
+
+          let currentActiveName = 'Home Sanctuary';
+          let found = false;
+
+          for (const s of sections) {
+            const el = document.getElementById(s.id);
+            if (el) {
+              const rect = el.getBoundingClientRect();
+              if (rect.top <= focusLine && rect.bottom > focusLine) {
+                currentActiveName = s.name;
+                found = true;
+                break;
+              }
             }
           }
-        });
-      },
-      {
-        root: null,
-        rootMargin: '-15% 0px -40% 0px',
-        threshold: [0.25, 0.5, 0.75],
-      }
-    );
 
-    sectionElements.forEach((el) => observer.observe(el));
+          // Fallback if between sections: choose the section with the largest visible overlap
+          if (!found) {
+            let maxOverlap = 0;
+            for (const s of sections) {
+              const el = document.getElementById(s.id);
+              if (el) {
+                const rect = el.getBoundingClientRect();
+                const visibleTop = Math.max(0, rect.top);
+                const visibleBottom = Math.min(viewportHeight, rect.bottom);
+                const overlap = Math.max(0, visibleBottom - visibleTop);
+                if (overlap > maxOverlap) {
+                  maxOverlap = overlap;
+                  currentActiveName = s.name;
+                }
+              }
+            }
+          }
+
+          setActiveSection(currentActiveName);
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    // Run once on mount to establish initial section
+    handleScroll();
 
     return () => {
-      sectionElements.forEach((el) => observer.unobserve(el));
+      window.removeEventListener('scroll', handleScroll);
     };
   }, [activeNav]);
 
@@ -101,7 +153,10 @@ export default function App() {
             <SupportSection />
             <WhatWeHelpWithSection />
             <TherapistSection />
+            <BookingProcessSection onOpenConsultation={() => handleOpenConsultation('Booking Consultation Process')} />
+            <TransitionShowcaseSection onOpenConsultation={() => handleOpenConsultation('Clarity Consultation')} />
             <RealStoriesSection />
+            <FAQSection onOpenConsultation={() => handleOpenConsultation('FAQ Inquiry - Private Consultation')} />
             <MessageSection />
           </div>
         )}
