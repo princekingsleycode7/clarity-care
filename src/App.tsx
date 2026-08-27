@@ -14,17 +14,51 @@ import { AboutPage } from './components/AboutPage';
 import { ServicesPage } from './components/ServicesPage';
 import { ReviewsPage } from './components/ReviewsPage';
 import { ContactPage } from './components/ContactPage';
+import { LandingPage } from './components/LandingPage';
 import { Footer } from './components/Footer';
 import { ContactModal } from './components/ContactModal';
 import { useSmoothScroll } from './hooks/useSmoothScroll';
 
+// Helper to determine initial nav tab from current URL pathname
+const getNavFromPath = (path: string): string => {
+  const cleanPath = path.toLowerCase().replace(/\/$/, '');
+  if (cleanPath === '/landing-page' || cleanPath === '/landing') return 'LandingPage';
+  if (cleanPath === '/about' || cleanPath === '/about-doctor') return 'About';
+  if (cleanPath === '/services' || cleanPath === '/service' || cleanPath === '/techniques') return 'Service';
+  if (cleanPath === '/reviews' || cleanPath === '/stories') return 'Reviews';
+  if (cleanPath === '/contact' || cleanPath === '/book') return 'Contact';
+  return 'Home';
+};
+
+const getPathFromNav = (nav: string): string => {
+  switch (nav) {
+    case 'LandingPage': return '/landing-page';
+    case 'About': return '/about';
+    case 'Service': return '/services';
+    case 'Reviews': return '/reviews';
+    case 'Contact': return '/contact';
+    default: return '/';
+  }
+};
+
 export default function App() {
   useSmoothScroll();
 
-  const [activeNav, setActiveNav] = useState<string>('Home');
+  const [activeNav, setActiveNav] = useState<string>(() => {
+    return getNavFromPath(window.location.pathname);
+  });
   const [activeSection, setActiveSection] = useState<string>('Home Sanctuary');
   const [isConsultationModalOpen, setIsConsultationModalOpen] = useState<boolean>(false);
   const [consultationTopic, setConsultationTopic] = useState<string>('Gain Clarity');
+
+  // Handle browser forward/back buttons
+  useEffect(() => {
+    const handlePopState = () => {
+      setActiveNav(getNavFromPath(window.location.pathname));
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   // Track active section on Home page scroll with high precision
   useEffect(() => {
@@ -128,6 +162,10 @@ export default function App() {
 
   const handleNavChange = (nav: string) => {
     setActiveNav(nav);
+    const targetPath = getPathFromNav(nav);
+    if (window.location.pathname !== targetPath) {
+      window.history.pushState(null, '', targetPath);
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -178,6 +216,13 @@ export default function App() {
         {activeNav === 'Reviews' && (
           <ReviewsPage 
             onBookConsultation={() => handleOpenConsultation('Consultation Request from Reviews')}
+            onNavigate={handleNavChange}
+          />
+        )}
+
+        {activeNav === 'LandingPage' && (
+          <LandingPage 
+            onBookConsultation={handleOpenConsultation}
             onNavigate={handleNavChange}
           />
         )}

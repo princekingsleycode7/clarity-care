@@ -52,6 +52,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'About', label: 'About Doctor' },
     { id: 'Service', label: 'Services & Techniques' },
     { id: 'Reviews', label: 'Reviews & Stories' },
+    { id: 'LandingPage', label: 'Landing Page' },
     { id: 'Contact', label: 'Contact Us' },
   ];
 
@@ -70,30 +71,24 @@ export const Navbar: React.FC<NavbarProps> = ({
   const handleNavClick = (id: string) => {
     setActiveNav(id);
     setMobileMenuOpen(false);
-    
-    // If clicking Home and already on Home, smooth scroll to top
-    if (id === 'Home' && activeNav === 'Home') {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    } else {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (
     <>
       {/* 1. TOP HEADER (When at the very top of the page) */}
       <header 
-        className={`fixed top-0 left-0 right-0 z-40 transition-all duration-500 pointer-events-none px-3 sm:px-6 pt-3 sm:pt-4 ${
+        className={`fixed top-0 left-0 right-0 z-40 transition-all duration-500 px-3 sm:px-6 pt-3 sm:pt-4 ${
           isScrolled 
             ? 'opacity-0 -translate-y-8 pointer-events-none' 
             : 'opacity-100 translate-y-0 pointer-events-auto'
         }`}
       >
-        <nav className="mx-auto max-w-6xl w-full bg-[#1c2c19]/90 backdrop-blur-md text-white rounded-full px-4 py-2 sm:px-6 sm:py-2.5 flex items-center justify-between shadow-xl border border-white/15">
+        <nav className="mx-auto max-w-6xl w-full bg-[#1c2c19]/90 backdrop-blur-md text-white rounded-full px-4 py-2 sm:px-6 sm:py-2.5 flex items-center justify-between shadow-xl border border-white/15 pointer-events-auto">
           {/* Brand Logo */}
           <div 
             onClick={() => handleNavClick('Home')}
-            className="flex items-center gap-2.5 sm:gap-3 cursor-pointer group"
+            className="flex items-center gap-2.5 sm:gap-3 cursor-pointer group pointer-events-auto"
           >
             <div className="w-9 h-8 sm:w-11 sm:h-9 flex items-center justify-center overflow-visible">
               <img 
@@ -117,14 +112,14 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           {/* Desktop Navigation Links */}
-          <div className="hidden lg:flex items-center gap-6 xl:gap-8">
+          <div className="hidden lg:flex items-center gap-5 xl:gap-7">
             {navItems.map((item) => {
               const isActive = activeNav === item.id;
               return (
                 <button
                   key={item.id}
                   onClick={() => handleNavClick(item.id)}
-                  className={`text-xs font-medium transition-all relative py-1 cursor-pointer ${
+                  className={`text-xs font-medium transition-all relative py-1 cursor-pointer whitespace-nowrap ${
                     isActive
                       ? 'text-white font-bold'
                       : 'text-gray-300 hover:text-white'
@@ -165,12 +160,12 @@ export const Navbar: React.FC<NavbarProps> = ({
       <div 
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
-        className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 transition-all duration-500 ease-out pointer-events-auto ${
+        className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 transition-all duration-500 ease-out ${
           !isScrolled 
             ? 'opacity-0 -translate-y-12 pointer-events-none' 
             : isScrollingDown && !isHovered
-              ? 'opacity-90 -translate-y-2 scale-95'
-              : 'opacity-100 translate-y-0 scale-100'
+              ? 'opacity-90 -translate-y-2 scale-95 pointer-events-auto'
+              : 'opacity-100 translate-y-0 scale-100 pointer-events-auto'
         }`}
       >
         <div className="bg-[#1c2c19]/95 backdrop-blur-xl text-white rounded-full p-1.5 sm:p-2 flex items-center gap-2 sm:gap-3 shadow-2xl border border-white/20 hover:border-[#a4bc87]/50 transition-all duration-300 max-w-[95vw]">

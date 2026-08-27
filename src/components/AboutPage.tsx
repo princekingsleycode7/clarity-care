@@ -91,16 +91,38 @@ export const AboutPage: React.FC<AboutPageProps> = ({ onBookConsultation, onNavi
       <div className="max-w-7xl mx-auto space-y-16 sm:space-y-24">
         
         {/* Header Hero Section */}
-        <section className="text-center max-w-3xl mx-auto space-y-5">
+        <section className="text-center max-w-4xl mx-auto space-y-6">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#1c2c19]/5 border border-[#1c2c19]/10 text-xs font-semibold text-[#2d4728] uppercase tracking-wider">
-            <Heart size={14} className="text-[#a4bc87]" /> About Clover Heart Haven & Dr. Elena Vance
+            <Heart size={14} className="text-[#a4bc87]" /> About Clover Heart Haven
           </div>
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold tracking-tight text-[#1c2c19] font-['Plus_Jakarta_Sans']">
-            Compassionate Care Grounded in Neuroscience & Warmth
+            A quieter kind of healing.
           </h1>
-          <p className="text-base sm:text-lg text-slate-600 leading-relaxed font-light">
-            We believe that mental wellness is not merely the absence of distress, but the presence of deep self-compassion, resilience, and meaningful connection.
-          </p>
+          <div className="space-y-3 text-base sm:text-lg md:text-xl text-slate-700 leading-relaxed font-normal max-w-3xl mx-auto">
+            <p className="font-medium text-[#1c2c19]">
+              Clover Heart Haven was created for women who are tired of being told to simply “move on.”
+            </p>
+            <p className="text-slate-600">
+              We believe emotional healing deserves patience, professionalism and compassion.
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 pt-2 text-sm sm:text-base font-semibold text-[#2d4728]">
+              <span className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#5a8751]" />
+                No performance.
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#5a8751]" />
+                No judgment.
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#5a8751]" />
+                No pretending.
+              </span>
+            </div>
+            <p className="text-slate-700 font-medium pt-2">
+              Just a safe place to begin understanding what you're carrying.
+            </p>
+          </div>
         </section>
 
         {/* Doctor Bio & Practice Story */}

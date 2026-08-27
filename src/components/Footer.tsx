@@ -200,6 +200,14 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
                 </li>
                 <li>
                   <button
+                    onClick={() => onNavigate ? onNavigate('LandingPage') : handleOpenModal('Landing Page')}
+                    className="hover:text-white transition-colors cursor-pointer text-left"
+                  >
+                    Dedicated Landing Page
+                  </button>
+                </li>
+                <li>
+                  <button
                     onClick={() => onNavigate ? onNavigate('Reviews') : handleOpenModal('Reviews')}
                     className="hover:text-white transition-colors cursor-pointer text-left"
                   >
