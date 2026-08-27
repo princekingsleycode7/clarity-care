@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { ArrowRight } from 'lucide-react';
+import ShinyText from './ShinyText';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -81,7 +82,17 @@ export const TransitionShowcaseSection: React.FC<TransitionShowcaseSectionProps>
       >
         {/* Main Display Headline */}
         <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-[54px] font-bold text-white tracking-tight leading-[1.15] font-['Plus_Jakarta_Sans'] mb-6 sm:mb-8 max-w-3xl">
-          Clover doesn't tell you to “get over it.”
+          <ShinyText
+            text="Clover doesn't tell you to “get over it.”"
+            speed={2.5}
+            delay={0.5}
+            color="#f4f2e8"
+            shineColor="#82c974"
+            spread={120}
+            direction="left"
+            yoyo={false}
+            pauseOnHover={false}
+          />
         </h2>
 
         {/* Narrative Lines */}

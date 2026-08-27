@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import { MessageSquare, Ear, Stethoscope, Compass, Sparkles, ArrowRight } from 'lucide-react';
+import ShinyText from './ShinyText';
 
 interface ProcessStep {
   number: string;
@@ -74,9 +75,19 @@ export const BookingProcessSection: React.FC<BookingProcessSectionProps> = ({ on
               <span>THE CONSULTATION JOURNEY</span>
             </div>
 
-            {/* Display Title */}
+            {/* Display Title with ShinyText Effect */}
             <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-[54px] font-bold text-white tracking-tight leading-[1.15] font-['Plus_Jakarta_Sans']">
-              What happens when you book?
+              <ShinyText
+                text="What happens when you book?"
+                speed={2.5}
+                delay={0.5}
+                color="#f4f2e8"
+                shineColor="#82c974"
+                spread={120}
+                direction="left"
+                yoyo={false}
+                pauseOnHover={false}
+              />
             </h2>
           </div>
 
