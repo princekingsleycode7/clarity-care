@@ -99,12 +99,13 @@ export const ImpactStatsSection: React.FC<ImpactStatsSectionProps> = ({ onOpenCo
 
         {/* Right Side: Emotional Narrative & Understanding */}
         <div className="flex flex-col items-start space-y-6 max-w-2xl">
-          {/* Staggered Repetition Thought Loops */}
-          <div className="space-y-2.5 stat-text">
-            <p className="text-xl sm:text-2xl md:text-[26px] font-semibold text-[#1c2c19] leading-snug tracking-tight font-['Plus_Jakarta_Sans']">
-              But you're still checking your phone.
-            </p>
-            <div className="space-y-1.5 text-base sm:text-lg md:text-xl text-[#2d4029] font-medium leading-snug">
+          {/* Main Headline & Staggered Repetition Thought Loops */}
+          <div className="space-y-4 stat-text">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-[40px] font-bold text-[#1c2c19] leading-[1.18] tracking-tight font-['Plus_Jakarta_Sans']">
+              Maybe you've been saying you're okay.
+            </h2>
+            <div className="space-y-2 text-base sm:text-lg md:text-xl text-[#2d4029] font-medium leading-snug">
+              <p>But you're still checking your phone.</p>
               <p>Still replaying the conversation.</p>
               <p>Still wondering what you did wrong.</p>
               <p>Still thinking about what could have been.</p>

@@ -13,8 +13,8 @@ export const WhatWeHelpWithSection: React.FC = () => {
 
       <div className="max-w-5xl mx-auto w-full flex flex-col items-center text-center relative z-10">
         {/* Centered Large Block of Text */}
-        <div className="w-full max-w-5xl mx-auto space-y-8 sm:space-y-10">
-          <div className="w-full">
+        <div className="w-full max-w-4xl mx-auto space-y-8 sm:space-y-10">
+          <div className="w-full max-w-3xl lg:max-w-4xl mx-auto">
             <ScrollFloat
               animationDuration={1.2}
               ease="back.inOut(2)"
@@ -22,24 +22,24 @@ export const WhatWeHelpWithSection: React.FC = () => {
               scrollEnd="bottom center"
               stagger={0.02}
               containerClassName="w-full"
-              textClassName="text-3xl sm:text-5xl md:text-6xl lg:text-[66px] xl:text-[72px] font-bold text-white tracking-tight leading-[1.12] font-['Plus_Jakarta_Sans'] uppercase text-center"
+              textClassName="text-2xl sm:text-4xl md:text-5xl lg:text-[52px] xl:text-[58px] font-bold text-white tracking-tight leading-[1.18] sm:leading-[1.2] font-['Plus_Jakarta_Sans'] uppercase text-center"
             >
               YOU DON'T HAVE TO HAVE EVERYTHING FIGURED OUT BEFORE ASKING FOR HELP.
             </ScrollFloat>
           </div>
 
-          <p className="text-lg sm:text-xl md:text-2xl text-[#a4bc87] font-medium tracking-tight">
+          <p className="text-base sm:text-lg md:text-xl text-[#a4bc87] font-medium tracking-tight">
             Clover can speak to areas such as:
           </p>
 
-          <div className="w-full">
+          <div className="w-full max-w-3xl mx-auto">
             <ScrollReveal
               baseOpacity={0}
               enableBlur={true}
-              baseRotation={5}
-              blurStrength={10}
+              baseRotation={4}
+              blurStrength={8}
               containerClassName="w-full"
-              textClassName="text-xl sm:text-2xl md:text-3xl lg:text-[34px] font-normal text-[#d2dbc8] leading-[1.6] sm:leading-[1.65] font-['Plus_Jakarta_Sans'] text-center"
+              textClassName="text-lg sm:text-xl md:text-2xl lg:text-[28px] font-normal text-[#d2dbc8] leading-[1.65] font-['Plus_Jakarta_Sans'] text-center"
             >
               Heartbreak & relationship transitions, Emotional overwhelm, Overthinking, Self-worth struggles, Attachment-related relationship patterns, Difficulty letting go, Loneliness, Relationship anxiety, Boundaries, and Rebuilding after emotionally difficult relationships.
             </ScrollReveal>

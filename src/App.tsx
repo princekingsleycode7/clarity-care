@@ -17,11 +17,14 @@ import { ContactPage } from './components/ContactPage';
 import { LandingPage } from './components/LandingPage';
 import { Footer } from './components/Footer';
 import { ContactModal } from './components/ContactModal';
+import { AdminDashboard } from './components/AdminDashboard';
 import { useSmoothScroll } from './hooks/useSmoothScroll';
+import { useAnalyticsTracker } from './hooks/useAnalyticsTracker';
 
 // Helper to determine initial nav tab from current URL pathname
 const getNavFromPath = (path: string): string => {
   const cleanPath = path.toLowerCase().replace(/\/$/, '');
+  if (cleanPath === '/admin' || cleanPath === '/admin-dashboard') return 'Admin';
   if (cleanPath === '/landing-page' || cleanPath === '/landing') return 'LandingPage';
   if (cleanPath === '/about' || cleanPath === '/about-doctor') return 'About';
   if (cleanPath === '/services' || cleanPath === '/service' || cleanPath === '/techniques') return 'Service';
@@ -32,6 +35,7 @@ const getNavFromPath = (path: string): string => {
 
 const getPathFromNav = (nav: string): string => {
   switch (nav) {
+    case 'Admin': return '/admin';
     case 'LandingPage': return '/landing-page';
     case 'About': return '/about';
     case 'Service': return '/services';
@@ -43,6 +47,7 @@ const getPathFromNav = (nav: string): string => {
 
 export default function App() {
   useSmoothScroll();
+  useAnalyticsTracker();
 
   const [activeNav, setActiveNav] = useState<string>(() => {
     return getNavFromPath(window.location.pathname);
@@ -51,7 +56,7 @@ export default function App() {
   const [isConsultationModalOpen, setIsConsultationModalOpen] = useState<boolean>(false);
   const [consultationTopic, setConsultationTopic] = useState<string>('Gain Clarity');
 
-  // Handle browser forward/back buttons
+  // Handle browser forward/back buttons and URL routing
   useEffect(() => {
     const handlePopState = () => {
       setActiveNav(getNavFromPath(window.location.pathname));
@@ -103,7 +108,7 @@ export default function App() {
             return;
           }
 
-          // Focus line at 38% down the viewport (ideal reading/viewing eye level)
+          // Focus line at 38% down the viewport
           const focusLine = viewportHeight * 0.38;
 
           let currentActiveName = 'Home Sanctuary';
@@ -121,7 +126,7 @@ export default function App() {
             }
           }
 
-          // Fallback if between sections: choose the section with the largest visible overlap
+          // Fallback if between sections
           if (!found) {
             let maxOverlap = 0;
             for (const s of sections) {
@@ -147,7 +152,6 @@ export default function App() {
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
-    // Run once on mount to establish initial section
     handleScroll();
 
     return () => {
@@ -168,6 +172,11 @@ export default function App() {
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
+  // If viewing the unlinked /admin route, display the standalone Admin Dashboard
+  if (activeNav === 'Admin') {
+    return <AdminDashboard />;
+  }
 
   return (
     <div className="min-h-screen bg-[#e4e9df] antialiased selection:bg-[#1c2c19] selection:text-white overflow-x-hidden font-['Plus_Jakarta_Sans']">
