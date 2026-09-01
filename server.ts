@@ -946,8 +946,8 @@ async function startServer(app: express.Express = express()) {
     res.sendFile(path.join(leadMagnetDir, "index.html"));
   });
 
-  // Vite middleware in dev mode
-  if (process.env.NODE_ENV !== "production") {
+  // Vite middleware should only run in local development, never in serverless hosting.
+  if (process.env.NODE_ENV !== "production" && !process.env.VERCEL) {
     createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
