@@ -347,9 +347,8 @@ async function updateLandingBookingInSupabase(db: SupabaseClient, id: string, st
   return false;
 }
 
-async function startServer() {
-  const app = express();
-  const PORT = 3000;
+async function startServer(app: express.Express = express()) {
+  const PORT = Number(process.env.PORT) || 3000;
 
   app.use(express.json());
 
@@ -784,6 +783,19 @@ async function startServer() {
       const totalLeadsCount = leadsList.length;
       const totalLandingBookingsCount = landingBookingsList.length;
 
+      // Count each converted person once across all conversion sources so the metric is
+      // visitor-based rather than row-based. This prevents >100% conversion when a single
+      // visitor has multiple bookings, leads, or contact records.
+      const uniqueConvertedVisitors = new Set(
+        [
+          ...prodBookingsList.map((booking) => booking.email?.trim().toLowerCase()).filter(Boolean),
+          ...leadsList.map((lead) => lead.email?.trim().toLowerCase()).filter(Boolean),
+          ...landingBookingsList.map((booking) => booking.email?.trim().toLowerCase()).filter(Boolean),
+        ]
+      ).size;
+
+      const conversionRateValue = uniqueSessions > 0 ? Math.min((uniqueConvertedVisitors / uniqueSessions) * 100, 100) : 0;
+
       // Scroll Depth Funnel
       const scrollEvents = analyticsList.filter((e) => e.event_type === "scroll_depth");
       const sessionsWithScroll = new Map<string, number>();
@@ -852,7 +864,7 @@ async function startServer() {
           totalCloverBookings,
           totalLeads: totalLeadsCount,
           totalLandingBookings: totalLandingBookingsCount,
-          conversionRate: uniqueSessions > 0 ? (((totalCloverBookings + totalLandingBookingsCount) / uniqueSessions) * 100).toFixed(1) : "0.0",
+          conversionRate: `${conversionRateValue.toFixed(1)}`,
         },
         scrollFunnel,
         sectionViews: Object.fromEntries(sectionViews),
@@ -924,13 +936,26 @@ async function startServer() {
     res.json({ status: "ok", timestamp: new Date().toISOString(), supabaseConnected: !!getSupabase() });
   });
 
+  // Mount the separate lead-magnet static landing page at /lead-magnet on the same domain
+  const leadMagnetDir = path.join(process.cwd(), "lead-magnet");
+  app.use("/lead-magnet", express.static(leadMagnetDir));
+  app.get("/lead-magnet", (req, res) => {
+    res.sendFile(path.join(leadMagnetDir, "index.html"));
+  });
+  app.get("/lead-magnet/*", (req, res) => {
+    res.sendFile(path.join(leadMagnetDir, "index.html"));
+  });
+
   // Vite middleware in dev mode
   if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
+    createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
+    }).then((vite) => {
+      app.use(vite.middlewares);
+    }).catch((err) => {
+      console.warn("Vite dev server failed to start:", err);
     });
-    app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
@@ -939,9 +964,21 @@ async function startServer() {
     });
   }
 
+  if (process.env.VERCEL) {
+    console.log("Vercel runtime detected; exporting Express app for serverless hosting.");
+    return app;
+  }
+
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Clover Heart Haven server running on port ${PORT}`);
   });
+
+  return app;
 }
 
-startServer();
+const app = express();
+startServer(app).catch((err) => {
+  console.error("Failed to initialize app:", err);
+});
+
+export default app;
