@@ -197,6 +197,28 @@ export default function App() {
               onNavigate={handleNavChange}
             />
             <ImpactStatsSection onOpenConsultation={() => handleOpenConsultation('Talk To Someone - Clarity Consultation')} />
+            <section className="relative w-full h-[100vh] min-h-[420px] max-h-[110vh] overflow-hidden bg-[#0f1b10]">
+              <video
+                className="absolute inset-0 h-full w-full object-cover"
+                src="https://res.cloudinary.com/dsgk1zlj1/video/upload/v1788224202/snaptik_7124368530178526510_hd_scp1uc.mp4"
+                autoPlay
+                loop
+                muted
+                playsInline
+                controls={false}
+              />
+              <div className="absolute inset-0 bg-[#0f1b10]/35" />
+              <div className="absolute inset-0 flex items-end justify-start px-4 pb-10 sm:px-8 sm:pb-12 md:px-12 md:pb-16 lg:px-16 lg:pb-20">
+                <div className="max-w-xl text-left text-white animate-[fadeInUp_0.9s_ease-out]">
+                  <h2 className="text-2xl font-bold tracking-[-0.04em] sm:text-2xl md:text-3xl lg:text-5xl">
+                    Therapy that meets the whole person.
+                  </h2>
+                  <p className="mt-3 text-sm text-[#eef5eb]/80 sm:text-base md:text-lg">
+                    A gentler way to understand what you’re carrying.
+                  </p>
+                </div>
+              </div>
+            </section>
             <SupportSection />
             <WhatWeHelpWithSection />
             <TherapistSection />
