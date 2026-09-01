@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Why You Still Miss Them — Free Guide | Clarity Care</title>
+<meta name="description" content="A free, gentle guide from Clarity Care on the emotional patterns behind missing someone — and a first step toward feeling like yourself again.">
+<link rel="icon" type="image/png" href="https://res.cloudinary.com/dsgk1zlj1/image/upload/v1786751973/DFG-removebg-preview_wjywvj.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..700;1,9..144,300..700&family=Karla:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400..600;1,6..72,400..600&display=swap" rel="stylesheet">
+<style>
+/* ============ TOKENS ============ */
+:root{
+  --cream:#F6F1E6;
+  --cream-deep:#EFE6D2;
+  --paper:#F3EBDA;
+  --ink:#33281C;
+  --ink-soft:#5C4E3D;
+  --muted:#7E6F58;
+
+
+
+
+
+
+  --terra:rgb(25, 74, 20);
+  --terra-deep:rgb(28, 53, 25);
+  --terra-dark:rgb(24, 41, 22);
+  --terra-light:#CE8656;
+
+  --dark:rgb(24, 41, 22);
+  --line:rgba(51,40,28,.16);
+  --line-strong:rgba(51,40,28,.32);
+  --serif:'Fraunces',Georgia,serif;
+  --body:'Newsreader',Georgia,serif;
+  --sans:'Karla',sans-serif;
+  --noise:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23n)' opacity='0.6'/%3E%3C/svg%3E");
+}
+*{margin:0;padding:0;box-sizing:border-box}
+[hidden]{display:none!important}
+html{scroll-behavior:smooth;scroll-padding-top:90px}
+body{
+  background:var(--cream);
+  color:var(--ink);
+  font-family:var(--body);
+  font-optical-sizing:auto;
+  overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+::selection{background:var(--terra-deep);color:var(--cream)}
+img,svg{display:block}
+button{font-family:inherit}
+
+/* film grain over everything — unifies the paper feel */
+.grain{position:fixed;inset:0;z-index:80;pointer-events:none;opacity:.055;background-image:var(--noise);background-size:240px}
+
+/* dust-mote canvas */
+#dust{position:fixed;inset:0;z-index:1;pointer-events:none}
+
+/* ============ HEADER ============ */
+.site-head{
+  position:absolute;top:0;left:0;right:0;z-index:20;
+  display:flex;justify-content:space-between;align-items:center;
+  padding:28px 48px;
+  animation:fadeDown .8s ease .15s both;
+}
+.wordmark{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--ink)}
+.wordmark svg{width:22px;height:22px;color:var(--terra)}
+.wordmark span{font:600 1.22rem var(--serif);letter-spacing:.01em}
+.wordmark em{font-style:italic;color:var(--terra)}
+.head-link{
+  font:700 .7rem var(--sans);letter-spacing:.15em;text-transform:uppercase;
+  color:var(--ink-soft);text-decoration:none;padding-bottom:4px;
+  border-bottom:1px solid var(--line-strong);transition:color .3s,border-color .3s;
+  background:none;border-top:0;border-left:0;border-right:0;cursor:pointer;
+}
+.head-link:hover{color:var(--terra);border-bottom-color:var(--terra)}
+
+/* ============ HERO ============ */
+.hero{position:relative;min-height:100vh;display:flex;align-items:center;z-index:2}
+.hero::before{ /* faint warm wash of light, like late sun on paper */
+  content:'';position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(900px 520px at 72% -8%,rgba(255,249,235,.95),rgba(255,249,235,0) 62%);
+}
+.hero-inner{
+  position:relative;width:100%;max-width:1180px;margin:0 auto;
+  padding:150px 48px 90px;
+  display:grid;grid-template-columns:1.12fr .88fr;gap:70px;align-items:center;
+}
+.hero-copy{max-width:620px}
+
+.eyebrow{
+  display:flex;align-items:center;gap:14px;
+  font:700 .68rem var(--sans);letter-spacing:.2em;text-transform:uppercase;color:var(--terra);
+  animation:fadeUp .8s ease .18s both;
+}
+.eyebrow::before{content:'';width:34px;height:1px;background:var(--terra)}
+
+.hero-h1{
+  font:500 clamp(2.7rem,5.2vw,4.35rem)/1.05 var(--serif);
+  letter-spacing:-.012em;color:var(--ink);
+  margin:26px 0 0;
+}
+.hero-h1 .w{display:inline-block;overflow:hidden;vertical-align:bottom;padding:0 .02em .13em .02em;margin:0 -.02em -.13em -.02em}
+.hero-h1 .wi{display:inline-block;transform:translateY(114%);animation:wordRise .9s cubic-bezier(.22,.75,.25,1) var(--d,0s) both}
+.wi-them{font-style:italic;color:var(--terra);position:relative;padding-right:.05em}
+.squiggle{position:absolute;left:0;bottom:-.13em;width:100%;height:.17em;overflow:visible}
+.squiggle path{
+  fill:none;stroke:var(--terra);stroke-width:2.4;stroke-linecap:round;vector-effect:non-scaling-stroke;
+  stroke-dasharray:100;stroke-dashoffset:100;animation:draw 1s ease-out 1.2s forwards;
+}
+
+.pitch{margin-top:38px;animation:fadeUp .9s ease .72s both}
+.pitch-kicker{
+  font:700 .64rem var(--sans);letter-spacing:.2em;text-transform:uppercase;color:var(--muted);
+}
+.pitch-title{
+  font:italic 500 clamp(1.55rem,2.5vw,2rem)/1.18 var(--serif);color:var(--terra);
+  margin:10px 0 14px;letter-spacing:-.005em;
+}
+.pitch-lede{font:400 1.14rem/1.62 var(--body);color:var(--ink-soft);max-width:47ch}
+
+/* ---- form ---- */
+.lead-form{margin-top:36px;max-width:560px;animation:fadeUp .9s ease .88s both;transition:opacity .35s ease,transform .35s ease}
+.offer{transition:opacity .35s ease,transform .35s ease}
+.offer.leaving{opacity:0;transform:translateY(-10px)}
+.form-row{display:grid;grid-template-columns:1fr 1.25fr;gap:26px}
+.field label{
+  display:block;font:700 .64rem var(--sans);letter-spacing:.16em;text-transform:uppercase;
+  color:var(--muted);margin-bottom:4px;transition:color .25s;
+}
+.field input{
+  width:100%;background:transparent;border:0;border-bottom:1px solid var(--line-strong);
+  border-radius:0;font:400 1.12rem/1.4 var(--body);color:var(--ink);
+  padding:9px 2px;caret-color:var(--terra);transition:border-color .25s;
+}
+.field input::placeholder{color:#B7A88F;font-style:italic}
+.field input:focus{outline:none;border-bottom-color:var(--terra)}
+.field:focus-within label{color:var(--terra)}
+.err{min-height:1.05em;font:500 .78rem/1.3 var(--sans);color:#A03A20;margin-top:7px;opacity:0;transform:translateY(-3px);transition:opacity .25s,transform .25s}
+.field.error .err{opacity:1;transform:none}
+.field.error input{border-bottom-color:#A03A20}
+.field.error label{color:#A03A20}
+
+.btn{
+  position:relative;display:inline-flex;align-items:center;justify-content:center;gap:12px;
+  background:var(--terra-deep);color:var(--cream);border:0;border-radius:4px;cursor:pointer;
+  font:700 .78rem var(--sans);letter-spacing:.17em;text-transform:uppercase;
+  padding:19px 32px;transition:background .3s,transform .3s,box-shadow .3s;
+}
+.btn:hover{background:var(--terra-dark);transform:translateY(-1px);box-shadow:0 12px 26px -14px rgba(140,68,35,.6)}
+.btn:active{transform:translateY(0)}
+.btn:focus-visible{outline:2px solid var(--terra);outline-offset:3px}
+.btn-arrow{width:17px;height:17px;transition:transform .3s}
+.btn:hover .btn-arrow{transform:translateX(4px)}
+.btn-block{width:100%;margin-top:28px}
+.btn-spinner{
+  display:none;position:absolute;width:18px;height:18px;border-radius:50%;
+  border:2px solid rgba(246,241,230,.35);border-top-color:var(--cream);
+  animation:spin .7s linear infinite;
+}
+.btn.is-loading{pointer-events:none}
+.btn.is-loading .btn-label,.btn.is-loading .btn-arrow{visibility:hidden}
+.btn.is-loading .btn-spinner{display:block}
+.form-note{
+  display:flex;align-items:flex-start;gap:8px;margin-top:16px;
+  font:italic 400 .88rem/1.5 var(--body);color:var(--muted);
+}
+.form-note svg{width:13px;height:13px;flex:none;margin-top:3px;color:var(--terra)}
+
+/* ---- guide visual (right side) ---- */
+.hero-visual{position:relative;width:100%;max-width:460px;justify-self:center}
+.arch-wrap{
+  position:absolute;top:-14px;left:50%;transform:translateX(-50%);
+  width:min(372px,88%);height:482px;
+  animation:archIn 1s cubic-bezier(.2,.7,.2,1) .4s both;
+}
+.arch{
+  width:100%;height:100%;background:var(--cream-deep);
+  border-radius:186px 186px 10px 10px;position:relative;
+}
+.arch::after{ /* offset outline echo — like a second print pass */
+  content:'';position:absolute;inset:-1px;
+  border:1px solid rgba(140,110,70,.38);border-radius:186px 186px 11px 11px;
+  transform:translate(13px,11px);pointer-events:none;
+}
+.book-wrap{position:relative;z-index:2;padding-top:148px;display:flex;justify-content:center}
+.book-bob{animation:bob 7s ease-in-out infinite}
+.book{
+  position:relative;width:clamp(220px,23vw,296px);aspect-ratio:5/7;
+  transform:rotate(-4deg);
+  box-shadow:24px 36px 62px -18px rgba(60,42,22,.36),8px 14px 24px -12px rgba(60,42,22,.22);
+  animation:bookIn 1s cubic-bezier(.2,.7,.2,1) .55s both;
+}
+.book::before{ /* spine */
+  content:'';position:absolute;left:-6px;top:5px;bottom:5px;width:9px;
+  background:#E1D2B2;border-radius:2px;box-shadow:inset -2px 0 3px rgba(90,65,35,.2);
+}
+.book::after{ /* page edges */
+  content:'';position:absolute;right:-5px;top:6px;bottom:6px;width:7px;
+  background:repeating-linear-gradient(90deg,#FDFAF1 0 1px,#DACEAF 1px 2px);
+  border-radius:0 2px 2px 0;
+}
+.book-cover{
+  position:absolute;inset:0;background:var(--paper);
+  border:1px solid rgba(120,95,60,.32);border-radius:3px 6px 6px 3px;
+  display:flex;flex-direction:column;align-items:center;text-align:center;
+  padding:34px 26px 26px;
+}
+.book-cover::before{content:'';position:absolute;inset:11px;border:1px solid rgba(120,95,60,.3);border-radius:2px;pointer-events:none}
+.book-cover::after{content:'';position:absolute;inset:0;background-image:var(--noise);background-size:240px;opacity:.22;mix-blend-mode:multiply;pointer-events:none;border-radius:inherit}
+.bc-eyebrow{font:700 .58rem var(--sans);letter-spacing:.24em;color:#8C7355}
+.bc-motif{width:72px;height:72px;margin:26px 0 20px;color:var(--terra)}
+.bc-title{font:500 clamp(1.2rem,1.6vw,1.5rem)/1.22 var(--serif);color:var(--ink);max-width:15ch}
+.bc-title em{font-style:italic;color:var(--terra)}
+.bc-sub{font:italic 400 .82rem/1.55 var(--body);color:#8C7355;margin-top:14px;max-width:21ch}
+.bc-foot{margin-top:auto;display:flex;flex-direction:column;align-items:center;gap:9px;font:700 .56rem var(--sans);letter-spacing:.26em;color:#8C7355}
+.bc-foot i{width:26px;height:1px;background:rgba(140,115,85,.5)}
+.book-meta{
+  margin-top:34px;text-align:center;
+  font:700 .62rem var(--sans);letter-spacing:.2em;text-transform:uppercase;color:var(--muted);
+  animation:fadeUp .9s ease 1s both;
+}
+
+/* ---- success state ---- */
+.success{display:none}
+.success.on{display:block}
+.success-copy{opacity:0;transform:translateY(12px)}
+.success.play .success-copy{animation:fadeUp .7s ease .95s both}
+.success-title{font:500 clamp(1.7rem,3vw,2.15rem)/1.15 var(--serif);letter-spacing:-.01em}
+.success-lede{font:400 1.08rem/1.6 var(--body);color:var(--ink-soft);margin-top:14px;max-width:48ch}
+.success-cta{margin-top:30px;padding-top:28px;border-top:1px solid var(--line);opacity:0;transform:translateY(12px)}
+.success.play .success-cta{animation:fadeUp .7s ease 1.2s both}
+.s-while{font:400 1.05rem/1.62 var(--body);color:var(--ink-soft);max-width:50ch}
+.s-while strong{font-weight:600;color:var(--ink)}
+.s-micro{margin-top:14px;font:700 .64rem var(--sans);letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+
+/* ---- envelope animation ---- */
+.envelope-scene{--ew:230px;--eh:156px;position:relative;width:var(--ew);height:calc(var(--eh) + 60px);margin:4px 0 26px;perspective:700px}
+.env-shadow{position:absolute;left:8px;right:8px;bottom:2px;height:20px;background:radial-gradient(ellipse at center,rgba(60,42,25,.3),transparent 70%);filter:blur(4px)}
+.envelope{position:absolute;left:0;top:36px;width:var(--ew);height:var(--eh);perspective:520px;transform-style:preserve-3d;opacity:0}
+.success.play .envelope{animation:envIn .7s ease .05s both}
+.env-back{position:absolute;inset:0;background:#EAE0C9;border:1px solid rgba(120,95,60,.28);border-radius:6px;z-index:1}
+.env-letter{
+  position:absolute;left:12px;right:12px;top:-34px;height:calc(100% - 24px);z-index:2;
+  background:#FBF7EC;border:1px solid rgba(120,95,60,.2);border-radius:2px;
+  display:flex;flex-direction:column;align-items:center;padding-top:12px;gap:6px;
+}
+.success.play .env-letter{animation:letterIn .6s cubic-bezier(.4,.6,.3,1) .4s both}
+.el-title{font:italic 500 .72rem var(--serif);color:var(--ink-soft);white-space:nowrap}
+.el-rule{width:36px;height:1px;background:rgba(120,95,60,.35)}
+.el-mark{font:700 .48rem var(--sans);letter-spacing:.22em;text-transform:uppercase;color:#A18C6C}
+.env-front{position:absolute;inset:0;width:100%;height:100%;z-index:3}
+.env-flap{
+  position:absolute;top:0;left:0;right:0;height:62%;z-index:4;
+  background:#E6D9BC;clip-path:polygon(0 0,100% 0,50% 100%);
+  transform-origin:50% 0;transform:rotateX(180deg);
+  filter:drop-shadow(0 1px 1px rgba(100,75,45,.3));
+}
+.success.play .env-flap{animation:flapClose .6s cubic-bezier(.5,.1,.3,1) 1.05s both}
+.env-seal{
+  position:absolute;left:50%;top:calc(62% - 17px);width:34px;height:34px;margin-left:-17px;z-index:5;
+  background:var(--terra-deep);color:var(--cream);border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font:italic 600 1.05rem var(--serif);box-shadow:0 2px 6px rgba(60,35,15,.35);
+  transform:scale(0);
+}
+.success.play .env-seal{animation:sealPop .45s cubic-bezier(.3,1.6,.5,1) 1.6s both}
+.send-dot{position:absolute;width:5px;height:5px;border-radius:50%;background:var(--terra);opacity:0;z-index:6;bottom:14px}
+.send-dot.d1{left:45%}.send-dot.d2{left:53%}.send-dot.d3{left:49%}
+.success.play .send-dot{animation:dotRise 3s ease-out infinite}
+.success.play .d1{animation-delay:1.9s}
+.success.play .d2{animation-delay:2.15s}
+.success.play .d3{animation-delay:2.4s}
+
+/* ============ INSIDE THE GUIDE ============ */
+.inside{position:relative;z-index:2;max-width:1180px;margin:0 auto;padding:110px 48px 120px;border-top:1px solid var(--line)}
+.inside-head{display:flex;justify-content:space-between;align-items:flex-end;gap:60px;margin-bottom:26px}
+.inside-head h2{font:500 clamp(1.9rem,3.4vw,2.7rem)/1.12 var(--serif);letter-spacing:-.012em;margin-top:20px}
+.inside-head h2 em{font-style:italic;color:var(--terra)}
+.inside-aside{font:italic 400 1.02rem/1.6 var(--body);color:var(--muted);max-width:34ch;text-align:right;padding-bottom:6px}
+.chapters{margin-top:34px}
+.chapter{
+  display:grid;grid-template-columns:112px 1fr;gap:36px;align-items:start;
+  padding:38px 0;border-top:1px solid var(--line);
+  transition:padding-left .45s cubic-bezier(.2,.7,.2,1);
+}
+.chapter:last-child{border-bottom:1px solid var(--line)}
+.chapter:hover{padding-left:16px}
+.chapter-num{font:300 3rem/1 var(--serif);color:var(--terra)}
+@supports (-webkit-text-stroke:1px black){
+  .chapter-num{color:transparent;-webkit-text-stroke:1px var(--terra);transition:color .4s}
+  .chapter:hover .chapter-num{color:var(--terra)}
+}
+.chapter h3{font:500 1.42rem/1.25 var(--serif);letter-spacing:-.008em}
+.chapter p{font:400 1.04rem/1.6 var(--body);color:var(--ink-soft);margin-top:10px;max-width:58ch}
+
+/* ============ DARK NOTE SECTION ============ */
+.note{position:relative;z-index:2;background:var(--dark);color:#EFE7D6;padding:130px 48px;text-align:center}
+.note-inner{max-width:730px;margin:0 auto}
+.note-mark{width:36px;height:36px;margin:0 auto 34px;color:var(--terra-light)}
+.note-statement{font:400 clamp(1.9rem,4vw,3.05rem)/1.2 var(--serif);letter-spacing:-.012em}
+.note-statement em{font-style:italic;color:var(--terra-light)}
+.note-copy{font:400 1.1rem/1.68 var(--body);color:#C9BBA6;margin:28px auto 0;max-width:56ch}
+.note-cta{margin-top:44px;display:flex;flex-direction:column;align-items:center;gap:16px}
+.btn-cream{background:var(--cream);color:var(--dark)}
+.btn-cream:hover{background:#FFF9EA;box-shadow:0 12px 26px -12px rgba(0,0,0,.5)}
+.note-micro{font:700 .64rem var(--sans);letter-spacing:.16em;text-transform:uppercase;color:rgba(239,231,214,.55)}
+.note-alt{
+  display:inline-block;margin-top:44px;background:none;border:0;cursor:pointer;
+  font:italic 400 1rem var(--body);color:rgba(239,231,214,.75);
+  border-bottom:1px solid rgba(239,231,214,.3);padding-bottom:3px;transition:color .3s,border-color .3s;
+}
+.note-alt:hover{color:var(--terra-light);border-color:var(--terra-light)}
+
+/* ============ FOOTER ============ */
+.site-foot{position:relative;z-index:2;border-top:1px solid var(--line)}
+.foot-inner{max-width:1180px;margin:0 auto;padding:44px 48px;display:flex;justify-content:space-between;gap:40px;flex-wrap:wrap;align-items:flex-start}
+.foot-brand{display:flex;flex-direction:column;gap:10px}
+.foot-brand .wordmark{cursor:default}
+.foot-brand p{font:italic 400 .92rem/1.5 var(--body);color:var(--muted);max-width:38ch}
+.foot-right{text-align:right;display:flex;flex-direction:column;gap:12px;align-items:flex-end}
+.foot-right a{font:700 .72rem var(--sans);letter-spacing:.14em;text-transform:uppercase;color:var(--terra);text-decoration:none;border-bottom:1px solid var(--terra);padding-bottom:3px;transition:color .3s,border-color .3s}
+.foot-right a:hover{color:var(--terra-dark);border-color:var(--terra-dark)}
+.foot-right p{font:italic 400 .85rem/1.5 var(--body);color:var(--muted);max-width:40ch}
+
+/* ============ MODAL ============ */
+.modal{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;padding:24px;visibility:hidden;transition:visibility 0s .4s}
+.modal.open{visibility:visible;transition:none}
+.modal-backdrop{position:absolute;inset:0;background:rgba(30,22,14,.55);opacity:0;transition:opacity .35s}
+.modal.open .modal-backdrop{opacity:1}
+.modal-panel{
+  position:relative;width:100%;max-width:560px;max-height:90vh;overflow-y:auto;
+  background:var(--cream);border-radius:12px;padding:42px 44px 36px;
+  box-shadow:0 30px 80px -20px rgba(30,20,10,.5);
+  transform:translateY(18px) scale(.97);opacity:0;transition:transform .4s cubic-bezier(.2,.8,.25,1),opacity .4s;
+}
+.modal.open .modal-panel{transform:none;opacity:1}
+.modal-close{
+  position:absolute;top:16px;right:16px;width:38px;height:38px;border-radius:50%;
+  border:1px solid var(--line);background:none;color:var(--ink-soft);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;transition:border-color .25s,color .25s;
+}
+.modal-close:hover{border-color:var(--terra);color:var(--terra)}
+.modal-close svg{width:15px;height:15px}
+.bm-eyebrow{display:flex;align-items:center;gap:12px;font:700 .62rem var(--sans);letter-spacing:.18em;text-transform:uppercase;color:var(--terra)}
+.bm-eyebrow::before{content:'';width:26px;height:1px;background:var(--terra)}
+.modal-panel h3{font:500 1.85rem/1.15 var(--serif);letter-spacing:-.012em;margin:16px 0 12px}
+.bm-lede{font:400 1rem/1.6 var(--body);color:var(--ink-soft);max-width:46ch}
+.bm-label{font:700 .64rem var(--sans);letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin:28px 0 12px}
+.chips{display:flex;flex-wrap:wrap;gap:10px}
+.chip{
+  font:600 .82rem var(--sans);padding:10px 17px;border:1px solid var(--line-strong);
+  background:transparent;border-radius:100px;color:var(--ink-soft);cursor:pointer;transition:all .25s;
+}
+.chip:hover{border-color:var(--terra);color:var(--terra)}
+.chip.sel{background:var(--terra-deep);border-color:var(--terra-deep);color:var(--cream)}
+.chip:disabled{opacity:.4;cursor:not-allowed}
+.bm-confirm{width:100%;margin-top:32px}
+.bm-confirm:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none;background:var(--terra-deep)}
+.bm-micro{margin-top:14px;text-align:center;font:italic 400 .85rem var(--body);color:var(--muted)}
+.bm-step-2{text-align:center;padding:14px 0 4px}
+.bm-check{width:56px;height:56px;border-radius:50%;background:var(--terra-deep);color:var(--cream);display:flex;align-items:center;justify-content:center;margin:0 auto 22px}
+.bm-check svg{width:24px;height:24px}
+.bm-detail{font:italic 500 1.15rem var(--body);color:var(--terra);margin-top:6px}
+.bm-detail2{font:400 .98rem/1.6 var(--body);color:var(--ink-soft);margin:14px auto 0;max-width:42ch}
+.bm-step-2 .btn{margin-top:28px}
+
+/* ============ ANIMATIONS ============ */
+@keyframes wordRise{to{transform:translateY(0)}}
+@keyframes draw{to{stroke-dashoffset:0}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}
+@keyframes fadeDown{from{opacity:0;transform:translateY(-14px)}to{opacity:1;transform:none}}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+@keyframes bookIn{from{opacity:0;transform:rotate(-7deg) translateY(34px)}to{opacity:1;transform:rotate(-4deg) translateY(0)}}
+@keyframes archIn{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:scale(1)}}
+@keyframes envIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+@keyframes letterIn{to{top:12px}}
+@keyframes flapClose{0%{transform:rotateX(180deg);z-index:1}59%{z-index:1}60%{z-index:4}100%{transform:rotateX(0deg);z-index:4}}
+@keyframes sealPop{from{transform:scale(0)}to{transform:scale(1)}}
+@keyframes dotRise{0%{opacity:0;transform:translateY(0)}12%{opacity:.55}100%{opacity:0;transform:translateY(-95px)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes revealUp{from{opacity:0;transform:translateY(26px)}to{opacity:1;transform:none}}
+.reveal{opacity:0}
+.reveal.in{animation:revealUp .8s cubic-bezier(.2,.7,.2,1) both}
+
+/* ============ RESPONSIVE ============ */
+@media (max-width:980px){
+  .hero-inner{grid-template-columns:1fr;gap:0;padding:130px 28px 80px}
+  .hero-visual{margin-top:80px}
+  .inside{padding:90px 28px 100px}
+  .inside-head{flex-direction:column;align-items:flex-start;gap:18px}
+  .inside-aside{text-align:left}
+  .note{padding:100px 28px}
+  .foot-inner{padding:40px 28px;flex-direction:column}
+  .foot-right{text-align:left;align-items:flex-start}
+  .site-head{padding:22px 28px}
+}
+@media (max-width:560px){
+  .form-row{grid-template-columns:1fr;gap:20px}
+  .chapter{grid-template-columns:64px 1fr;gap:20px;padding:30px 0}
+  .chapter-num{font-size:2.1rem}
+  .modal-panel{padding:34px 26px 28px}
+  .hero-h1{font-size:2.55rem}
+  .book-wrap{padding-top:110px}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.001s!important;animation-delay:0s!important;animation-iteration-count:1!important;transition-duration:.001s!important}
+  .book-bob{animation:none}
+  html{scroll-behavior:auto}
+}
+</style>
+</head>
+<body>
+
+<canvas id="dust" aria-hidden="true"></canvas>
+<div class="grain" aria-hidden="true"></div>
+
+<!-- ============ HEADER ============ -->
+<header class="site-head">
+  <a class="wordmark" href="#top" aria-label="Clarity Care — back to top">
+    <img src="https://res.cloudinary.com/dsgk1zlj1/image/upload/v1786751973/DFG-removebg-preview_wjywvj.png" alt="Clarity Care logo" style="width:22px;height:22px;object-fit:contain;">
+    <span>Clarity <em>Care</em></span>
+  </a>
+  <button class="head-link" data-open-booking type="button">Talk to someone</button>
+</header>
+
+<main id="top">
+
+<!-- ============ HERO ============ -->
+<section class="hero">
+  <div class="hero-inner">
+
+    <div class="hero-copy">
+      <p class="eyebrow">A free guide from Clarity Care</p>
+
+      <h1 class="hero-h1">
+        <span class="w"><span class="wi" style="--d:.22s">Still</span></span>
+        <span class="w"><span class="wi" style="--d:.3s">thinking</span></span>
+        <span class="w"><span class="wi" style="--d:.38s">about</span></span>
+        <span class="w"><span class="wi wi-them" style="--d:.46s">them<svg class="squiggle" viewBox="0 0 200 14" preserveAspectRatio="none" aria-hidden="true"><path d="M3 10 C 30 3, 62 13, 98 8 S 152 3, 197 9" pathLength="100"/></svg></span></span><span class="w"><span class="wi" style="--d:.54s">?</span></span>
+      </h1>
+
+      <div class="offer" id="offerBlock">
+        <div class="pitch">
+          <p class="pitch-kicker">Download the free guide</p>
+          <p class="pitch-title">Why You Still Miss Them</p>
+          <p class="pitch-lede">Understand the emotional patterns behind missing someone — and discover a gentle first step toward feeling more like yourself again.</p>
+        </div>
+
+        <form class="lead-form" id="leadForm" novalidate>
+          <div class="form-row">
+            <div class="field" id="fieldName">
+              <label for="firstName">First name</label>
+              <input type="text" id="firstName" name="firstName" placeholder="Ana" autocomplete="given-name">
+              <p class="err" id="errName" aria-live="polite"></p>
+            </div>
+            <div class="field" id="fieldEmail">
+              <label for="email">Email</label>
+              <input type="email" id="email" name="email" placeholder="you@example.com" autocomplete="email">
+              <p class="err" id="errEmail" aria-live="polite"></p>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-block" id="submitBtn">
+            <span class="btn-label">Get my free guide</span>
+            <svg class="btn-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 12h15m0 0l-6-6m6 6l-6 6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span class="btn-spinner" aria-hidden="true"></span>
+          </button>
+          <p class="form-note">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4.5 12.5l4.5 4.5 10-11" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            No spam, no pressure — just the guide, and a gentle note now and then. Unsubscribe anytime.
+          </p>
+        </form>
+      </div>
+
+      <!-- success state, replaces the offer above -->
+      <div class="success" id="successBlock" aria-live="polite">
+        <div class="envelope-scene" aria-hidden="true">
+          <div class="env-shadow"></div>
+          <div class="envelope">
+            <div class="env-back"></div>
+            <div class="env-letter">
+              <span class="el-title">Why You Still Miss Them</span>
+              <span class="el-rule"></span>
+              <span class="el-mark">a gentle guide</span>
+            </div>
+            <svg class="env-front" viewBox="0 0 230 156" preserveAspectRatio="none" aria-hidden="true">
+              <path d="M0 0 L115 74 L230 0 L230 156 L0 156 Z" fill="#F2E8D3"/>
+              <path d="M0 156 L115 74 L230 156" fill="none" stroke="rgba(125,98,62,.18)" stroke-width="1"/>
+              <path d="M0 0 L115 74 L230 0" fill="none" stroke="rgba(125,98,62,.3)" stroke-width="1"/>
+            </svg>
+            <div class="env-flap"></div>
+            <div class="env-seal">C</div>
+            <span class="send-dot d1"></span><span class="send-dot d2"></span><span class="send-dot d3"></span>
+          </div>
+        </div>
+        <div class="success-copy">
+          <h2 class="success-title">Your guide is on its way<span id="successName"></span>.</h2>
+          <p class="success-lede">It should land in your inbox within a minute or two. If it plays hide-and-seek, check the promotions folder.</p>
+        </div>
+        <div class="success-cta">
+          <p class="s-while">While you're here — you can also book a <strong>free private clarity call</strong>, if you'd like someone to help you understand what you're going through.</p>
+          <button class="btn" data-open-booking type="button">
+            <span class="btn-label">Book my free call</span>
+            <svg class="btn-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 12h15m0 0l-6-6m6 6l-6 6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <p class="s-micro">30 minutes · private · no obligation</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="hero-visual" aria-hidden="true">
+      <div class="arch-wrap"><div class="arch-px" id="archPx"><div class="arch"></div></div></div>
+      <div class="book-wrap">
+        <div class="book-px" id="bookPx">
+          <div class="book-bob">
+            <div class="book">
+              <div class="book-cover">
+                <span class="bc-eyebrow">A Clarity Care Guide</span>
+                <img src="https://res.cloudinary.com/dsgk1zlj1/image/upload/v1786751973/DFG-removebg-preview_wjywvj.png" alt="Clarity Care" class="bc-motif" style="object-fit:contain;">
+                <h3 class="bc-title">Why You <em>Still</em> Miss Them</h3>
+                <p class="bc-sub">understanding the weight of missing someone — and the gentle way through</p>
+                <div class="bc-foot"><i></i><span>Clarity Care</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="book-meta">PDF · 24 pages · a gentle 12-minute read</p>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============ INSIDE THE GUIDE ============ -->
+<section class="inside">
+  <div class="inside-head reveal">
+    <div>
+      <p class="eyebrow">Inside the guide</p>
+      <h2>Four short chapters, <em>written gently.</em></h2>
+    </div>
+    <p class="inside-aside">Written by the therapists at Clarity Care, in plain language — the same quiet honesty we bring to every session.</p>
+  </div>
+
+  <div class="chapters" id="chapters">
+    <article class="chapter reveal">
+      <span class="chapter-num">01</span>
+      <div>
+        <h3>Why you miss them</h3>
+        <p>The psychology of longing — why your mind keeps returning to the same person, the same song, the same street.</p>
+      </div>
+    </article>
+    <article class="chapter reveal">
+      <span class="chapter-num">02</span>
+      <div>
+        <h3>The loops that keep it alive</h3>
+        <p>Memory, quiet hope, and the small daily habits that gently reopen the door.</p>
+      </div>
+    </article>
+    <article class="chapter reveal">
+      <span class="chapter-num">03</span>
+      <div>
+        <h3>First steps that don't overwhelm</h3>
+        <p>Simple, doable practices for the heavy days. No timelines, no pressure to "move on."</p>
+      </div>
+    </article>
+    <article class="chapter reveal">
+      <span class="chapter-num">04</span>
+      <div>
+        <h3>Knowing when to reach out</h3>
+        <p>How to tell the difference between grief that softens and grief that needs a witness — and what support can look like.</p>
+      </div>
+    </article>
+  </div>
+</section>
+
+<!-- ============ DARK NOTE ============ -->
+<section class="note">
+  <div class="note-inner">
+    <img src="https://res.cloudinary.com/dsgk1zlj1/image/upload/v1786751973/DFG-removebg-preview_wjywvj.png" alt="Clarity Care" class="note-mark reveal" style="object-fit:contain;">
+    <h2 class="note-statement reveal">You're not broken. You're missing someone. <em>Those are different things.</em></h2>
+    <p class="note-copy reveal">The guide won't ask you to stop thinking about them. It will help you understand why you can't — and show you a gentler way to carry it. And if reading brings things to the surface, you don't have to hold them alone.</p>
+    <div class="note-cta reveal">
+      <button class="btn btn-cream" data-open-booking type="button">
+        <span class="btn-label">Book a free private clarity call</span>
+        <svg class="btn-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 12h15m0 0l-6-6m6 6l-6 6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <span class="note-micro">30 minutes · private · with a Clarity Care therapist · no obligation</span>
+    </div>
+    <button class="note-alt reveal" id="backToGuide" type="button">Not ready for a call? Take the guide instead — it's free.</button>
+  </div>
+</section>
+
+</main>
+
+<!-- ============ FOOTER ============ -->
+<footer class="site-foot">
+  <div class="foot-inner">
+    <div class="foot-brand">
+      <span class="wordmark">
+        <img src="https://res.cloudinary.com/dsgk1zlj1/image/upload/v1786751973/DFG-removebg-preview_wjywvj.png" alt="Clarity Care logo" style="width:22px;height:22px;object-fit:contain;">
+        <span>Clarity <em>Care</em></span>
+      </span>
+      <p>Gentle, professional support for grief, loss, and the in-between days.</p>
+    </div>
+    <div class="foot-right">
+      <a href="https://clarity-care-sepia.vercel.app/" target="_blank" rel="noopener">Visit Clarity Care →</a>
+      <p>© 2025 Clarity Care. This guide isn't a substitute for therapy — but it's a kind place to start.</p>
+    </div>
+  </div>
+</footer>
+
+<!-- ============ BOOKING MODAL ============ -->
+<div class="modal" id="bookingModal" aria-hidden="true">
+  <div class="modal-backdrop" data-close></div>
+  <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="bmTitle">
+    <button class="modal-close" data-close aria-label="Close" type="button">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+    </button>
+
+    <div class="bm-step-1" id="bmStep1">
+      <p class="bm-eyebrow">Free · 30 minutes · private</p>
+      <h3 id="bmTitle">Book your clarity call</h3>
+      <p class="bm-lede">Thirty gentle minutes with a Clarity Care therapist. No scripts, no pressure — just someone who listens for a living.</p>
+      <p class="bm-label">Choose a day</p>
+      <div class="chips" id="dayChips"></div>
+      <p class="bm-label">Choose a time</p>
+      <div class="chips" id="timeChips"></div>
+      <button class="btn bm-confirm" id="bmConfirm" disabled type="button">
+        <span class="btn-label">Confirm this time</span>
+        <svg class="btn-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 12h15m0 0l-6-6m6 6l-6 6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <p class="bm-micro">We'll confirm by email and send a gentle reminder the day before.</p>
+    </div>
+
+    <div class="bm-step-2" id="bmStep2" hidden>
+      <div class="bm-check" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <h3>You're on the calendar.</h3>
+      <p class="bm-detail" id="bmSlot"></p>
+      <p class="bm-detail2" id="bmConfirmNote">We'll hold this time for you, and send a calm little note on what to expect from the call.</p>
+      <button class="btn" data-close type="button"><span class="btn-label">Done</span></button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+  var RM = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var FINE = window.matchMedia('(pointer: fine)').matches;
+
+  /* ================================================================
+     DUST MOTES — memories drifting in afternoon light
+     Soft sprites pre-rendered to offscreen canvases; particles
+     swirl gently around the cursor, like thoughts around attention.
+  ================================================================ */
+  var canvas = document.getElementById('dust');
+  var ctx = canvas.getContext('2d');
+  var W = 0, H = 0, parts = [], mouse = {x:-9999, y:-9999};
+
+  function makeSprite(rgb){
+    var c = document.createElement('canvas'); c.width = c.height = 64;
+    var g = c.getContext('2d');
+    var gr = g.createRadialGradient(32,32,0,32,32,32);
+    gr.addColorStop(0, 'rgba('+rgb+',0.85)');
+    gr.addColorStop(0.4,'rgba('+rgb+',0.32)');
+    gr.addColorStop(1, 'rgba('+rgb+',0)');
+    g.fillStyle = gr; g.fillRect(0,0,64,64);
+    return c;
+  }
+  var SPRITES = [ makeSprite('170,136,92'), makeSprite('198,150,96'), makeSprite('255,243,213') ];
+  // kinds: mostly soft sepia dust, some amber, a few bright glints
+  var KINDS = [
+    {s:0, aMin:.10, aMax:.26, rMin:2.0, rMax:9.0},
+    {s:1, aMin:.12, aMax:.30, rMin:1.6, rMax:6.0},
+    {s:2, aMin:.35, aMax:.75, rMin:1.0, rMax:2.6}
+  ];
+  function pickKind(){
+    var r = Math.random();
+    if (r < .68) return KINDS[0];
+    if (r < .9)  return KINDS[1];
+    return KINDS[2];
+  }
+  function makeParticle(fromBottom){
+    var k = pickKind();
+    return {
+      x: Math.random()*W,
+      y: fromBottom ? H + 20 : Math.random()*H,
+      r: k.rMin + Math.random()*(k.rMax - k.rMin),
+      a: k.aMin + Math.random()*(k.aMax - k.aMin),
+      sp: SPRITES[k.s],
+      vx: (Math.random()-.5)*.16,
+      vy: -.03 - Math.random()*.11,
+      ph: Math.random()*Math.PI*2,
+      sw: .06 + Math.random()*.14
+    };
+  }
+  function resizeCanvas(){
+    var DPR = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth; H = window.innerHeight;
+    canvas.width = W*DPR; canvas.height = H*DPR;
+    canvas.style.width = W+'px'; canvas.style.height = H+'px';
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+    var count = Math.min(120, Math.round(W*H/15000));
+    parts = [];
+    for (var i=0;i<count;i++) parts.push(makeParticle(false));
+    if (RM) drawStatic();
+  }
+  function drawStatic(){
+    ctx.clearRect(0,0,W,H);
+    parts.forEach(function(p){
+      ctx.globalAlpha = p.a;
+      ctx.drawImage(p.sp, p.x - p.r*2, p.y - p.r*2, p.r*4, p.r*4);
+    });
+    ctx.globalAlpha = 1;
+  }
+  window.addEventListener('resize', resizeCanvas);
+  window.addEventListener('pointermove', function(e){ mouse.x = e.clientX; mouse.y = e.clientY; });
+  window.addEventListener('pointerleave', function(){ mouse.x = -9999; mouse.y = -9999; });
+  resizeCanvas();
+
+  /* ================================================================
+     PARALLAX on the guide & arch (book nearer -> moves more)
+  ================================================================ */
+  var bookPx = document.getElementById('bookPx');
+  var archPx = document.getElementById('archPx');
+  var tx = 0, ty = 0, cx = 0, cy = 0;
+  if (FINE && !RM){
+    window.addEventListener('pointermove', function(e){
+      tx = e.clientX / window.innerWidth - .5;
+      ty = e.clientY / window.innerHeight - .5;
+    });
+  }
+
+  var t = 0;
+  function frame(){
+    t += .016;
+    ctx.clearRect(0,0,W,H);
+    for (var i=0;i<parts.length;i++){
+      var p = parts[i];
+      p.x += p.vx + Math.cos(t*p.sw*2 + p.ph)*.10;
+      p.y += p.vy;
+      var dx = p.x - mouse.x, dy = p.y - mouse.y, d2 = dx*dx + dy*dy, R = 130, boost = 0;
+      if (d2 < R*R){
+        var d = Math.sqrt(d2) || 1, f = 1 - d/R;
+        // tangential swirl + a slight pull toward the cursor
+        p.x += (-dy/d)*f*.9 - (dx/d)*f*.25;
+        p.y += ( dx/d)*f*.9 - (dy/d)*f*.25;
+        boost = f*.8;
+      }
+      if (p.y < -26){ p.y = H + 20; p.x = Math.random()*W; }
+      if (p.y > H + 26){ p.y = -20; p.x = Math.random()*W; }
+      if (p.x < -26) p.x = W + 20;
+      if (p.x > W + 26) p.x = -20;
+      ctx.globalAlpha = Math.min(1, p.a + boost);
+      ctx.drawImage(p.sp, p.x - p.r*2, p.y - p.r*2, p.r*4, p.r*4);
+    }
+    ctx.globalAlpha = 1;
+
+    cx += (tx - cx)*.055; cy += (ty - cy)*.055;
+    if (bookPx) bookPx.style.transform = 'translate3d('+(cx*20)+'px,'+(cy*15)+'px,0)';
+    if (archPx) archPx.style.transform = 'translate3d('+(cx*8)+'px,'+(cy*6)+'px,0)';
+
+    requestAnimationFrame(frame);
+  }
+  if (!RM) requestAnimationFrame(frame);
+
+  /* ================================================================
+     LEAD FORM — validation, fake send, envelope success sequence
+  ================================================================ */
+  var form = document.getElementById('leadForm');
+  var offer = document.getElementById('offerBlock');
+  var success = document.getElementById('successBlock');
+  var submitBtn = document.getElementById('submitBtn');
+  var fieldName = document.getElementById('fieldName');
+  var fieldEmail = document.getElementById('fieldEmail');
+  var firstName = document.getElementById('firstName');
+  var email = document.getElementById('email');
+  var errName = document.getElementById('errName');
+  var errEmail = document.getElementById('errEmail');
+  var lead = null, sending = false;
+
+  function setError(field, errEl, msg){
+    field.classList.add('error');
+    errEl.textContent = msg;
+  }
+  function clearError(field, errEl){
+    field.classList.remove('error');
+    errEl.textContent = '';
+  }
+  firstName.addEventListener('input', function(){ clearError(fieldName, errName); });
+  email.addEventListener('input', function(){ clearError(fieldEmail, errEmail); });
+
+  form.addEventListener('submit', function(e){
+    e.preventDefault();
+    if (sending) return;
+
+    var ok = true;
+    var name = firstName.value.trim();
+    var mail = email.value.trim();
+
+    if (!name){ setError(fieldName, errName, 'Please add your first name.'); ok = false; }
+    if (!mail){
+      setError(fieldEmail, errEmail, 'Please add your email — that\u2019s where the guide goes.'); ok = false;
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)){
+      setError(fieldEmail, errEmail, 'That email doesn\u2019t look quite right.'); ok = false;
+    }
+    if (!ok){
+      var firstInvalid = fieldName.classList.contains('error') ? firstName : email;
+      firstInvalid.focus();
+      return;
+    }
+
+    lead = { name: name, email: mail };
+    sending = true;
+    submitBtn.classList.add('is-loading');
+
+    // brief "sending" beat, then swap the offer for the envelope sequence
+    setTimeout(function(){
+      offer.classList.add('leaving');
+      setTimeout(function(){
+        offer.style.display = 'none';
+        document.getElementById('successName').textContent = ', ' + name;
+        success.classList.add('on');
+        requestAnimationFrame(function(){
+          requestAnimationFrame(function(){ success.classList.add('play'); });
+        });
+        success.scrollIntoView({block:'nearest', behavior: RM ? 'auto' : 'smooth'});
+        sending = false;
+      }, 380);
+    }, 950);
+  });
+
+  /* ================================================================
+     BOOKING MODAL — local, fully functional mini-scheduler
+  ================================================================ */
+  var modal = document.getElementById('bookingModal');
+  var dayChips = document.getElementById('dayChips');
+  var timeChips = document.getElementById('timeChips');
+  var bmConfirm = document.getElementById('bmConfirm');
+  var bmStep1 = document.getElementById('bmStep1');
+  var bmStep2 = document.getElementById('bmStep2');
+  var bmSlot = document.getElementById('bmSlot');
+  var bmConfirmNote = document.getElementById('bmConfirmNote');
+  var lastFocus = null;
+  var selDay = null, selTime = null;
+
+  var TIME_SETS = [
+    ['9:00 AM','11:30 AM','4:00 PM'],
+    ['10:30 AM','1:00 PM','5:30 PM'],
+    ['9:30 AM','2:00 PM','4:30 PM']
+  ];
+  function nextDays(n){
+    var out = [], d = new Date();
+    while (out.length < n){
+      d.setDate(d.getDate() + 1);
+      if (d.getDay() === 0) continue; // we rest on Sundays
+      out.push(new Date(d));
+    }
+    return out;
+  }
+  var days = nextDays(6);
+
+  days.forEach(function(d, i){
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'chip';
+    b.textContent = d.toLocaleDateString('en-US', {weekday:'short', month:'short', day:'numeric'});
+    b.addEventListener('click', function(){
+      selDay = { date: d, label: b.textContent };
+      selTime = null;
+      bmConfirm.disabled = true;
+      Array.prototype.forEach.call(dayChips.children, function(c){ c.classList.remove('sel'); });
+      b.classList.add('sel');
+      renderTimes(d);
+    });
+    dayChips.appendChild(b);
+  });
+
+  function renderTimes(d){
+    timeChips.innerHTML = '';
+    var set = TIME_SETS[(d.getDate() + d.getMonth()) % TIME_SETS.length];
+    set.forEach(function(t){
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'chip';
+      b.textContent = t;
+      b.addEventListener('click', function(){
+        selTime = t;
+        Array.prototype.forEach.call(timeChips.children, function(c){ c.classList.remove('sel'); });
+        b.classList.add('sel');
+        bmConfirm.disabled = false;
+      });
+      timeChips.appendChild(b);
+    });
+  }
+
+  bmConfirm.addEventListener('click', function(){
+    if (!selDay || !selTime) return;
+    bmSlot.textContent = selDay.label + ' at ' + selTime;
+    var note = 'We\u2019ll hold this time for you, and send a calm little note on what to expect from the call.';
+    if (lead){
+      note = 'We\u2019ll hold it for you, ' + lead.name + '. A confirmation is on its way to ' + lead.email + ', with a gentle note on what to expect from the call.';
+    }
+    bmConfirmNote.textContent = note;
+    bmStep1.hidden = true;
+    bmStep2.hidden = false;
+  });
+
+  function openModal(){
+    // reset to a fresh booking state each time
+    bmStep1.hidden = false;
+    bmStep2.hidden = true;
+    selDay = null; selTime = null;
+    bmConfirm.disabled = true;
+    Array.prototype.forEach.call(dayChips.children, function(c){ c.classList.remove('sel'); });
+    timeChips.innerHTML = '';
+    lastFocus = document.activeElement;
+    modal.classList.add('open');
+    modal.setAttribute('aria-hidden','false');
+    document.body.style.overflow = 'hidden';
+    setTimeout(function(){
+      var closeBtn = modal.querySelector('.modal-close');
+      if (closeBtn) closeBtn.focus();
+    }, 60);
+  }
+  function closeModal(){
+    modal.classList.remove('open');
+    modal.setAttribute('aria-hidden','true');
+    document.body.style.overflow = '';
+    if (lastFocus && lastFocus.focus) lastFocus.focus();
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('[data-open-booking]'), function(el){
+    el.addEventListener('click', openModal);
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('[data-close]'), function(el){
+    el.addEventListener('click', closeModal);
+  });
+  modal.addEventListener('keydown', function(e){
+    if (e.key === 'Escape'){ closeModal(); return; }
+    if (e.key === 'Tab'){
+      var f = modal.querySelectorAll('button:not([hidden]), [href], input, select, textarea');
+      f = Array.prototype.filter.call(f, function(el){ return el.offsetParent !== null; });
+      if (!f.length) return;
+      var first = f[0], last = f[f.length-1];
+      if (e.shiftKey && document.activeElement === first){ e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last){ e.preventDefault(); first.focus(); }
+    }
+  });
+
+  /* ================================================================
+     SCROLL REVEALS + small utilities
+  ================================================================ */
+  var chapters = document.querySelectorAll('#chapters .reveal');
+  chapters.forEach(function(c, i){ c.style.animationDelay = (i*90) + 'ms'; });
+  var noteEls = document.querySelectorAll('.note-inner .reveal');
+  noteEls.forEach(function(c, i){ c.style.animationDelay = (i*110) + 'ms'; });
+
+  if ('IntersectionObserver' in window){
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(en){
+        if (en.isIntersecting){ en.target.classList.add('in'); io.unobserve(en.target); }
+      });
+    }, {threshold:.15, rootMargin:'0px 0px -40px 0px'});
+    document.querySelectorAll('.reveal').forEach(function(el){ io.observe(el); });
+  } else {
+    document.querySelectorAll('.reveal').forEach(function(el){ el.classList.add('in'); });
+  }
+
+  document.getElementById('backToGuide').addEventListener('click', function(){
+    var target = offer.style.display === 'none' ? success : offer;
+    target.scrollIntoView({behavior: RM ? 'auto' : 'smooth', block:'center'});
+  });
+})();
+</script>
+</body>
+</html>
