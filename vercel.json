@@ -10,5 +10,13 @@
         ]
       }
     }
+  ],
+  "routes": [
+    { "src": "/api/(.*)", "dest": "/server.ts" },
+    { "src": "/lead-magnet/(.*)", "dest": "/server.ts" },
+    { "src": "/lead-magnet", "dest": "/server.ts" },
+    { "src": "/admin", "dest": "/server.ts" },
+    { "src": "/admin/(.*)", "dest": "/server.ts" },
+    { "src": "/(.*)", "dest": "/server.ts" }
   ]
 }
