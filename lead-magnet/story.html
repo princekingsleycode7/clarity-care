@@ -146,6 +146,9 @@ html.lenis,html.lenis body{height:auto}
 .form-status{font-family:var(--sans);font-size:13px;margin-top:4px}
 .form-status.success{color:var(--leaf)}
 .form-status.error{color:#e7a69a}
+.return-home{display:none;margin-top:12px;font-family:var(--sans);font-size:13px;color:var(--ink);text-decoration:none;border:1px solid rgba(163,199,150,.3);border-radius:99px;padding:10px 16px}
+.return-home.on{display:inline-block}
+.return-home:hover{border-color:var(--leaf);color:var(--leaf)}
 .talkbox textarea{width:100%;min-height:120px;background:rgba(236,234,222,.05);color:var(--ink);
   border:1px solid rgba(163,199,150,.22);border-radius:12px;padding:16px;font-family:var(--serif);
   font-size:17px;line-height:1.6;resize:vertical}
@@ -381,6 +384,7 @@ html.rm #chips{position:relative}
       <textarea id="msg" name="message" data-lenis-prevent aria-label="Your message"></textarea>
       <button class="cta" type="submit" id="lead-submit">Send my message</button>
       <p class="form-status" id="lead-status" role="status" aria-live="polite"></p>
+      <a class="return-home" id="return-home" href="../">Back to main landing page (<span id="return-count">15</span>s)</a>
     </form>
     <div class="talkbtns">
       <a class="cta" id="wa" href="#" target="_blank" rel="noopener">Send on WhatsApp</a>
@@ -609,6 +613,20 @@ const MSG="I don't know what's happening to me. I just know I'm tired.";
 const leadForm=$('#lead-form');
 const leadSubmit=$('#lead-submit');
 const leadStatus=$('#lead-status');
+const returnHome=$('#return-home');
+const returnCount=$('#return-count');
+let returnTimer;
+function startReturnCountdown(){
+  let seconds=15;
+  returnHome.classList.add('on');
+  returnCount.textContent=seconds;
+  clearInterval(returnTimer);
+  returnTimer=setInterval(()=>{
+    seconds-=1;
+    returnCount.textContent=seconds;
+    if(seconds<=0){clearInterval(returnTimer);location.href='../';}
+  },1000);
+}
 leadForm.addEventListener('submit',async e=>{
   e.preventDefault();
   const data=new FormData(leadForm);
@@ -627,6 +645,7 @@ leadForm.addEventListener('submit',async e=>{
     leadStatus.textContent='Thank you. We\'ll be in touch soon.';
     leadStatus.className='form-status success';
     leadForm.reset();
+    startReturnCountdown();
   }catch(error){
     leadStatus.textContent='We couldn\'t send that right now. Please try again.';
     leadStatus.className='form-status error';

@@ -22,14 +22,13 @@
 
 
 
-
-
+--dark:rgb(24, 41, 22);
   --terra:rgb(25, 74, 20);
   --terra-deep:rgb(28, 53, 25);
   --terra-dark:rgb(24, 41, 22);
   --terra-light:#CE8656;
 
-  --dark:rgb(24, 41, 22);
+  
   --line:rgba(51,40,28,.16);
   --line-strong:rgba(51,40,28,.32);
   --serif:'Fraunces',Georgia,serif;
@@ -232,6 +231,9 @@ button{font-family:inherit}
 .success-lede{font:400 1.08rem/1.6 var(--body);color:var(--ink-soft);margin-top:14px;max-width:48ch}
 .success-cta{margin-top:30px;padding-top:28px;border-top:1px solid var(--line);opacity:0;transform:translateY(12px)}
 .success.play .success-cta{animation:fadeUp .7s ease 1.2s both}
+.return-home{display:inline-flex;align-items:center;margin-top:22px;padding:12px 18px;border:1px solid var(--line-strong);color:var(--terra-deep);font:700 .7rem var(--sans);letter-spacing:.12em;text-transform:uppercase;text-decoration:none;transition:background .25s,color .25s,border-color .25s}
+.return-home:hover{background:var(--terra-deep);border-color:var(--terra-deep);color:var(--cream)}
+.return-home strong{font-weight:700;margin-left:4px}
 .s-while{font:400 1.05rem/1.62 var(--body);color:var(--ink-soft);max-width:50ch}
 .s-while strong{font-weight:600;color:var(--ink)}
 .s-micro{margin-top:14px;font:700 .64rem var(--sans);letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
@@ -506,6 +508,7 @@ button{font-family:inherit}
             <svg class="btn-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 12h15m0 0l-6-6m6 6l-6 6" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
           <p class="s-micro">30 minutes · private · no obligation</p>
+          <a class="return-home" id="guideReturnHome" href="../">Back to main landing page in <strong><span>15</span>s</strong></a>
         </div>
       </div>
     </div>
@@ -641,6 +644,7 @@ button{font-family:inherit}
       <h3>You're on the calendar.</h3>
       <p class="bm-detail" id="bmSlot"></p>
       <p class="bm-detail2" id="bmConfirmNote">We'll hold this time for you, and send a calm little note on what to expect from the call.</p>
+      <a class="return-home" id="bookingReturnHome" href="../">Back to main landing page in <strong><span>15</span>s</strong></a>
       <button class="btn" data-close type="button"><span class="btn-label">Done</span></button>
     </div>
   </div>
@@ -782,6 +786,24 @@ button{font-family:inherit}
   var errName = document.getElementById('errName');
   var errEmail = document.getElementById('errEmail');
   var lead = null, sending = false;
+  var guideReturnHome = document.getElementById('guideReturnHome');
+  var guideReturnTimer = null;
+  var bookingReturnHome = document.getElementById('bookingReturnHome');
+  var bookingReturnTimer = null;
+
+  function startReturnCountdown(link, timerName){
+    var seconds = 15;
+    link.querySelector('span').textContent = seconds;
+    clearInterval(window[timerName]);
+    window[timerName] = setInterval(function(){
+      seconds -= 1;
+      link.querySelector('span').textContent = seconds;
+      if (seconds <= 0){
+        clearInterval(window[timerName]);
+        window.location.href = '../';
+      }
+    }, 1000);
+  }
 
   function setError(field, errEl, msg){
     field.classList.add('error');
@@ -825,6 +847,7 @@ button{font-family:inherit}
         offer.style.display = 'none';
         document.getElementById('successName').textContent = ', ' + name;
         success.classList.add('on');
+        startReturnCountdown(guideReturnHome, 'guideReturnTimer');
         requestAnimationFrame(function(){
           requestAnimationFrame(function(){ success.classList.add('play'); });
         });
@@ -908,6 +931,7 @@ button{font-family:inherit}
     bmConfirmNote.textContent = note;
     bmStep1.hidden = true;
     bmStep2.hidden = false;
+    startReturnCountdown(bookingReturnHome, 'bookingReturnTimer');
   });
 
   function openModal(){
