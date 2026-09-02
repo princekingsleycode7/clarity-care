@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Her story could have been yours — Somewhere Safe</title>
+<meta name="description" content="You don't have to pretend you're okay. Talk to someone. Private. Compassionate. No judgment.">
+<meta property="og:title" content="Her story could have been yours.">
+<meta property="og:description" content="A story about the nights nobody sees. Talk to someone — private, compassionate, no judgment.">
+<meta property="og:image" content="https://res.cloudinary.com/dsgk1zlj1/image/upload/v1788349642/Woman_lying_on_bed_crying_202609021232_stxbs0.jpg">
+
+<!-- Lenis smooth scroll -->
+<script src="https://cdn.jsdelivr.net/npm/lenis@1.1.18/dist/lenis.min.js"></script>
+
+<style>
+/* ============================================================
+   SOMEWHERE SAFE — scrollytelling v0.4 (Lenis)
+   ============================================================ */
+:root{
+  --dark:rgb(24, 41, 22);
+  --terra:rgb(25, 74, 20);
+  --terra-deep:rgb(28, 53, 25);
+  --leaf:rgb(132, 178, 118);
+  --bg:#070a07;
+  --scrim:7,12,7;
+  --ink:#eceade; --ink-dim:#a6ab9d; --ink-faint:#6f7568;
+  --warm:0;
+  --serif:"Newsreader","Georgia",serif;
+  --sans:"Inter",system-ui,sans-serif;
+  --mono:ui-monospace,"SF Mono",monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--serif);overflow-x:hidden;-webkit-font-smoothing:antialiased}
+::selection{background:rgba(122,176,106,.32)}
+
+/* ---- Lenis recommended base ---- */
+html.lenis,html.lenis body{height:auto}
+.lenis.lenis-smooth{scroll-behavior:auto !important}
+.lenis.lenis-smooth [data-lenis-prevent]{overscroll-behavior:contain}
+.lenis.lenis-stopped{overflow:hidden}
+
+/* fixed chrome */
+#grain{position:fixed;inset:-50%;width:200%;height:200%;pointer-events:none;z-index:60;opacity:.07;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+  animation:grain 1.2s steps(4) infinite}
+@keyframes grain{0%{transform:translate(0,0)}25%{transform:translate(-2%,1%)}50%{transform:translate(1%,-2%)}75%{transform:translate(-1%,-1%)}100%{transform:translate(0,0)}}
+#vignette{position:fixed;inset:0;pointer-events:none;z-index:40;background:radial-gradient(ellipse at center,transparent 55%,rgba(4,7,4,.58) 100%)}
+#warmveil{position:fixed;inset:0;pointer-events:none;z-index:41;opacity:calc(var(--warm)*.5);
+  background:radial-gradient(ellipse at 70% 90%,rgba(232,176,106,.20),transparent 60%)}
+#clock{position:fixed;left:18px;bottom:16px;z-index:70;font-family:var(--mono);font-size:13px;letter-spacing:.14em;color:var(--ink-dim)}
+#clock.tick{color:var(--leaf)}
+#help{position:fixed;top:14px;right:16px;z-index:70;font-family:var(--sans);font-size:12px;letter-spacing:.06em;
+  color:var(--ink-dim);text-decoration:none;border:1px solid rgba(163,199,150,.22);border-radius:99px;
+  padding:7px 14px;backdrop-filter:blur(6px);background:rgba(7,10,7,.4)}
+#help:hover,#help:focus-visible{color:var(--ink);border-color:rgba(163,199,150,.55);outline:none}
+
+/* sound gate */
+#gate{position:fixed;inset:0;z-index:80;display:grid;place-items:center;background:rgba(4,7,4,.74);
+  backdrop-filter:blur(3px);text-align:center;padding:24px}
+#gate.gone{opacity:0;pointer-events:none;transition:opacity .6s}
+#gate p{font-size:15px;color:var(--ink-dim);font-style:italic;margin-bottom:22px;line-height:1.6}
+#listen{font-family:var(--sans);font-size:14px;letter-spacing:.04em;color:var(--ink);background:none;
+  border:1px solid rgba(163,199,150,.4);border-radius:99px;padding:12px 26px;cursor:pointer}
+#listen:hover{border-color:var(--leaf);color:var(--leaf)}
+#gate .skip{display:block;margin-top:14px;font-family:var(--sans);font-size:12px;color:var(--ink-dim);
+  background:none;border:none;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+
+/* scenes */
+.scene{position:relative}
+.pin{position:sticky;top:0;height:100vh;height:100svh;overflow:hidden}
+.layer{position:absolute;inset:0;background-size:cover;background-position:center;opacity:0;will-change:transform,opacity}
+.layer.ph{background:radial-gradient(ellipse at 50% 60%,#121a11 0%,var(--bg) 75%);display:grid;place-items:center}
+.layer.ph span{font-family:var(--mono);font-size:12px;letter-spacing:.2em;color:#46523f;border:1px dashed #2c362a;padding:8px 14px;border-radius:6px}
+.videoel{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+
+/* text scrims */
+.scrim{position:absolute;inset:0;z-index:5;pointer-events:none;opacity:.62}
+.scene[data-bright="1"] .scrim{opacity:.88}
+.scene[data-side="l"] .scrim{background:linear-gradient(90deg,rgba(var(--scrim),.82) 0%,rgba(var(--scrim),.42) 42%,transparent 68%)}
+.scene[data-side="r"] .scrim{background:linear-gradient(270deg,rgba(var(--scrim),.82) 0%,rgba(var(--scrim),.42) 42%,transparent 68%)}
+.scene[data-side="c"] .scrim{background:linear-gradient(0deg,rgba(var(--scrim),.78) 0%,rgba(var(--scrim),.38) 38%,transparent 68%)}
+@media (max-width:899px){
+  .scrim{background:linear-gradient(0deg,rgba(var(--scrim),.84) 0%,rgba(var(--scrim),.42) 32%,transparent 62%) !important}
+}
+
+/* copy / beats */
+.copy{position:absolute;inset:0;z-index:10;pointer-events:none}
+.beat{position:absolute;top:50%;left:50%;width:min(88vw,600px);opacity:0;
+  will-change:opacity,transform;pointer-events:none;
+  text-shadow:0 2px 18px rgba(0,0,0,.55),0 1px 3px rgba(0,0,0,.5)}
+@media (max-width:899px){ .beat{top:60%} }
+@media (min-width:900px){
+  .scene[data-side="l"] .beat{left:6vw;width:min(38vw,520px)}
+  .scene[data-side="r"] .beat{left:auto;right:6vw;width:min(38vw,520px)}
+  .scene[data-side="c"] .beat{width:min(88vw,660px)}
+}
+.beat .vo{font-size:clamp(19px,2.6vw,26px);line-height:1.55}
+.beat .quiet{font-size:clamp(14px,1.7vw,17px);color:var(--ink-dim);font-style:italic}
+.beat .big{font-size:clamp(30px,5.4vw,54px);line-height:1.25}
+.beat .ok{font-size:clamp(34px,6vw,60px)}
+.dim2{color:var(--ink-dim)} .dim3{color:var(--ink-faint)}
+
+/* stacked lines */
+.stack span{display:block;opacity:0;will-change:opacity,transform,filter;
+  font-size:clamp(21px,2.8vw,32px);line-height:1.4;margin:.62em 0}
+.stack.maybe span{font-size:clamp(19px,2.4vw,27px);color:var(--ink-dim)}
+
+#typebox{font-size:clamp(26px,4.6vw,46px);min-height:1.5em}
+#typebox::after{content:"▍";color:var(--leaf);animation:blink 1s steps(1) infinite;margin-left:2px}
+@keyframes blink{50%{opacity:0}}
+
+#chips{position:absolute;inset:0;pointer-events:none;z-index:7}
+.chip{position:absolute;font-family:var(--sans);font-size:clamp(13px,1.6vw,16px);color:var(--ink);
+  border:1px solid rgba(163,199,150,.28);border-radius:99px;padding:10px 18px;background:rgba(9,15,8,.74);
+  backdrop-filter:blur(4px);opacity:0;white-space:nowrap;text-shadow:none}
+
+.strike{text-decoration:line-through;text-decoration-color:rgba(236,234,222,.5);color:var(--ink-dim)}
+#amberfx{position:absolute;inset:0;opacity:0;pointer-events:none;
+  background:linear-gradient(200deg,rgba(232,176,106,.36),rgba(120,90,30,.10) 55%,transparent 80%)}
+
+/* offer / CTA */
+.pill{display:inline-block;font-size:clamp(17px,2.4vw,22px);font-style:italic;border:1px solid rgba(163,199,150,.35);
+  border-radius:14px;padding:18px 24px;cursor:pointer;background:rgba(9,15,8,.55);margin:26px 0 30px;
+  transition:border-color .3s,transform .3s;text-shadow:none}
+.pill:hover,.pill:focus-visible{border-color:var(--leaf);transform:translateY(-2px);outline:none}
+.pill small{display:block;font-family:var(--sans);font-style:normal;font-size:11px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--ink-dim);margin-top:10px}
+.cta{display:inline-block;font-family:var(--sans);font-size:16px;letter-spacing:.03em;color:#f2f5ee;
+  background:var(--terra);border:none;border-radius:99px;padding:16px 34px;cursor:pointer;text-decoration:none;
+  transition:transform .25s,box-shadow .25s,background .25s}
+.cta:hover,.cta:focus-visible{transform:translateY(-2px);background:#2c6326;box-shadow:0 8px 40px rgba(96,158,80,.30);outline:none}
+.trust{margin-top:22px;font-family:var(--sans);font-size:13px;color:var(--ink-dim);text-shadow:0 1px 10px rgba(0,0,0,.5)}
+
+/* contact */
+#talk{min-height:100vh;display:grid;place-items:center;padding:14vh 6vw;
+  background:linear-gradient(var(--bg),var(--terra-deep) 140%)}
+.talkbox{width:min(560px,100%)}
+.talkbox h2{font-size:clamp(28px,4.5vw,40px);font-weight:400;margin-bottom:14px}
+.talkbox .sub{color:var(--ink-dim);font-style:italic;margin-bottom:34px;line-height:1.6}
+.talkbox form{display:grid;gap:8px;margin-bottom:18px}
+.talkbox form label{font-family:var(--sans);font-size:12px;color:var(--ink-dim);margin-top:8px}
+.talkbox form input{width:100%;background:rgba(236,234,222,.05);color:var(--ink);border:1px solid rgba(163,199,150,.22);border-radius:12px;padding:14px 16px;font-family:var(--sans);font-size:15px}
+.talkbox form input:focus{outline:none;border-color:var(--leaf)}
+.talkbox form .cta{justify-self:start;margin-top:10px}
+.talkbox form .cta:disabled{cursor:wait;opacity:.65;transform:none}
+.form-status{font-family:var(--sans);font-size:13px;margin-top:4px}
+.form-status.success{color:var(--leaf)}
+.form-status.error{color:#e7a69a}
+.talkbox textarea{width:100%;min-height:120px;background:rgba(236,234,222,.05);color:var(--ink);
+  border:1px solid rgba(163,199,150,.22);border-radius:12px;padding:16px;font-family:var(--serif);
+  font-size:17px;line-height:1.6;resize:vertical}
+.talkbox textarea:focus{outline:none;border-color:var(--leaf)}
+.talkbtns{display:flex;gap:12px;flex-wrap:wrap;margin-top:18px}
+.talkbtns .ghost{font-family:var(--sans);font-size:14px;color:var(--ink);background:none;cursor:pointer;
+  border:1px solid rgba(163,199,150,.3);border-radius:99px;padding:14px 24px;text-decoration:none}
+.talkbtns .ghost:hover{border-color:var(--leaf);color:var(--leaf)}
+.fineprint{margin-top:40px;font-family:var(--sans);font-size:12px;color:#8a9184;line-height:1.8}
+.fineprint a{color:var(--ink-dim)}
+.crisis{margin-top:16px;font-family:var(--sans);font-size:12px;color:#8a9184;border-left:2px solid rgba(163,199,150,.25);padding-left:12px;line-height:1.7}
+
+/* reduced motion */
+@media (prefers-reduced-motion:reduce){#grain{animation:none}}
+html.rm .scene{height:auto !important;min-height:60vh}
+html.rm .pin{position:relative;height:auto;min-height:70vh;padding:16vh 0}
+html.rm .layer{opacity:.3 !important;transform:none !important}
+html.rm .videoel{display:none}
+html.rm .scrim{display:none}
+html.rm .copy{position:relative}
+html.rm .beat{position:relative;left:auto !important;top:auto;transform:none;opacity:1 !important;margin:18px auto;width:min(88vw,600px)}
+html.rm .stack span{opacity:1 !important;transform:none !important;filter:none !important;margin:.6em 0}
+html.rm #typebox::after{animation:none}
+html.rm .chip{opacity:1 !important;position:static;display:inline-block;margin:6px;transform:none}
+html.rm #chips{position:relative}
+</style>
+</head>
+<body>
+
+<div id="grain" aria-hidden="true"></div>
+<div id="vignette" aria-hidden="true"></div>
+<div id="warmveil" aria-hidden="true"></div>
+<div id="clock" aria-hidden="true">1:17 AM</div>
+<a id="help" href="#talk">I need to talk now</a>
+
+<div id="gate" role="dialog" aria-label="Enable sound">
+  <div>
+    <p>This story has a voice.<br>Headphones are better at 1 a.m.</p>
+    <button id="listen"> Listen with sound</button>
+    <button class="skip" id="mute">Continue in silence</button>
+  </div>
+</div>
+
+<main>
+
+<!-- SCENE 0 — THRESHOLD -->
+<section class="scene" id="s0" data-vh="220" data-vo="vo0" data-side="c">
+  <div class="pin">
+    <div class="layer" data-shot="S0A" data-video="V_LYING" data-in="0" data-out="1" data-zoom=".10"></div>
+    <div class="scrim" aria-hidden="true"></div>
+    <div class="copy">
+      <div class="beat" data-in=".02" data-out=".30"><p class="big">Her story could<br>have been yours.</p></div>
+      <div class="beat" data-in=".45" data-out=".90"><p class="quiet">Scroll slowly. There's no rush here.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- SCENE 1 — "I'M OKAY" -->
+<section class="scene" id="s1" data-vh="340" data-vo="vo1" data-side="r" data-bright="1">
+  <div class="pin">
+    <div class="layer" data-shot="S1A" data-video="V_PARTY"  data-in="0"   data-out=".52" data-zoom=".08" data-pany="-3" data-filter="brightness(.82) saturate(.85)"></div>
+    <div class="layer" data-shot="S1B" data-video="V_SELFIE" data-in=".46" data-out=".74" data-zoom=".08" data-filter="brightness(.86)"></div>
+    <div class="layer" data-shot="S1C" data-in=".68" data-out="1" data-zoom=".10"></div>
+    <div class="scrim" aria-hidden="true"></div>
+    <div class="copy">
+      <div class="beat" data-in=".06" data-out=".22"><p class="ok">"I'm okay."</p><p class="quiet" style="margin-top:18px">I'd say it at work.</p></div>
+      <div class="beat" data-in=".28" data-out=".44"><p class="ok dim2">"I'm okay."</p><p class="quiet" style="margin-top:18px">I'd say it when my friends asked.</p></div>
+      <div class="beat" data-in=".50" data-out=".66"><p class="ok dim2">"I'm okay."</p><p class="quiet" style="margin-top:18px">I'd say it when my mother called.</p></div>
+      <div class="beat" data-in=".72" data-out=".92"><p class="ok dim3">"I'm okay."</p><p class="quiet" style="margin-top:18px">I'd even say it to myself.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- SCENE 2 — THE LOOP -->
+<section class="scene" id="s2" data-vh="420" data-vo="vo2" data-drone="1" data-side="l">
+  <div class="pin">
+    <div class="layer" data-shot="S2A" data-video="V_REACH" data-in="0"   data-out=".34" data-zoom=".10"></div>
+    <div class="layer" data-shot="S2B" data-video="V_CRY"   data-in=".26" data-out=".62" data-zoom=".08"></div>
+    <div class="layer" data-shot="S2C" data-video="V_PLACE" data-in=".56" data-out=".80" data-zoom=".12"></div>
+    <div class="layer" data-shot="S2B" data-video="V_CRY"   data-in=".74" data-out="1"   data-zoom=".14"></div>
+    <div class="scrim" aria-hidden="true"></div>
+    <div class="copy">
+      <div class="beat" data-in=".04" data-out=".24"><p class="vo">But every night, when the room went quiet...<br><br>I wasn't okay.</p></div>
+      <div class="beat" data-in=".30" data-out=".46"><p class="vo">His name wasn't there.<br><span class="quiet">I knew it wouldn't be.</span></p></div>
+      <div class="beat" data-in=".52" data-out=".66"><p class="vo">Still, I checked.</p></div>
+      <div class="beat" data-in=".70" data-out=".82"><p class="vo">Then I checked again.</p></div>
+      <div class="beat" data-in=".86" data-out="1" data-hold="1"><p class="vo">And again.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- SCENE 3 — THE SPIRAL -->
+<section class="scene" id="s3" data-vh="380" data-vo="vo3" data-drone="2" data-side="r">
+  <div class="pin">
+    <div class="layer" data-shot="S3C" data-in="0"   data-out=".40" data-zoom=".08"></div>
+    <div class="layer" data-shot="S3A" data-video="V_SCROLL" data-in=".20" data-out=".44" data-zoom=".08"></div>
+    <div class="layer" data-shot="S3B" data-in=".38" data-out=".68" data-zoom=".10"></div>
+    <div class="layer" data-shot="S3D" data-in=".62" data-out=".90" data-zoom=".10"></div>
+    <div class="scrim" aria-hidden="true"></div>
+    <div class="copy">
+      <div class="beat" data-in=".04" data-out=".42">
+        <div class="stack" id="qs">
+          <span data-at=".06">Was I not enough?</span>
+          <span data-at=".13">Was she better than me?</span>
+          <span data-at=".20">What did I do wrong?</span>
+          <span data-at=".27">Why wasn't I worth staying for?</span>
+        </div>
+      </div>
+      <div class="beat" data-in=".46" data-out=".74">
+        <div class="stack maybe" id="mys">
+          <span data-at=".48">Maybe if I'd been softer.</span>
+          <span data-at=".55">Maybe if I'd been less emotional.</span>
+          <span data-at=".62">Maybe if I'd just been easier to love.</span>
+        </div>
+      </div>
+      <div class="beat" data-in=".80" data-out="1" data-hold="1">
+        <p class="vo">I stopped questioning whether he loved me.</p>
+        <p class="big" style="font-size:clamp(24px,3.4vw,38px);margin-top:1.2em">I started questioning whether I was lovable at all.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SCENE 4 — 1:17 -->
+<section class="scene" id="s4" data-vh="480" data-vo="vo4" data-slow="1" data-side="l">
+  <div class="pin">
+    <div class="layer" data-shot="S4A1" data-in="0"   data-out=".30" data-zoom=".06"></div>
+    <div class="layer" data-shot="S4B"  data-in=".26" data-out=".74" data-zoom=".06"></div>
+    <div class="layer" data-shot="S4C"  data-in=".70" data-out=".88" data-zoom=".10"></div>
+    <div class="layer" data-shot="S4D"  data-in=".84" data-out="1"   data-zoom=".10"></div>
+    <div class="scrim" aria-hidden="true"></div>
+    <div class="copy">
+      <div class="beat" data-in=".02" data-out=".16"><p class="vo">And nobody saw that part.</p>
+        <p class="quiet" style="margin-top:16px">Sitting on the bathroom floor at 1:17 in the morning...<br>trying not to text him.</p></div>
+      <div class="beat" data-in=".30" data-out=".78" data-hold="1"><div id="typebox"></div></div>
+      <div class="beat" data-in=".80" data-out=".93"><p class="vo" style="font-style:italic">"Please don't do this<br>to yourself again."</p></div>
+      <div class="beat" data-in=".94" data-out="1" data-hold="1"><p class="vo">I wasn't just missing a person.<br><br>I was exhausted from fighting what I felt.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- SCENE 5 — THE NOISE -->
+<section class="scene" id="s5" data-vh="340" data-vo="vo5" data-duck=".56,.80" data-side="c">
+  <div class="pin">
+    <div class="layer" data-shot="S5A" data-in="0" data-out=".56" data-zoom=".08"></div>
+    <div id="chips" aria-hidden="true">
+      <span class="chip" data-at=".10" data-x="12" data-y="18">Block him.</span>
+      <span class="chip" data-at=".18" data-x="70" data-y="26">Forget him.</span>
+      <span class="chip" data-at=".26" data-x="20" data-y="64">Love yourself.</span>
+      <span class="chip" data-at=".34" data-x="66" data-y="72">Get back out there.</span>
+      <span class="chip" data-at=".42" data-x="42" data-y="44">There are plenty of other people.</span>
+    </div>
+    <div class="layer" style="background:#050705" data-in=".60" data-out="1"></div>
+    <div class="scrim" aria-hidden="true"></div>
+    <div class="copy">
+      <div class="beat" data-in=".62" data-out="1" data-hold="1"><p class="vo">But nobody told me what to do<br>with the silence afterward.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- SCENE 6 — THE TURN -->
+<section class="scene" id="s6" data-vh="260" data-vo="vo6" data-warmfrom=".2" data-side="r" data-bright="1">
+  <div class="pin">
+    <div class="layer" data-shot="S6A" data-in="0" data-out="1" data-zoom=".08" data-filter="brightness(.94)"></div>
+    <div id="amberfx"></div>
+    <div class="scrim" aria-hidden="true"></div>
+    <div class="copy">
+      <div class="beat" data-in=".08" data-out=".46"><p class="vo"><span class="strike">"How do I stop missing him?"</span></p></div>
+      <div class="beat" data-in=".42" data-out=".95"><p class="big">"Why am I hurting<br>this much?"</p><p class="quiet" style="margin-top:20px">And for the first time, I didn't judge myself for the answer.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- SCENE 7 — COMING BACK -->
+<section class="scene" id="s7" data-vh="360" data-vo="vo7" data-side="l" data-bright="1">
+  <div class="pin">
+    <div class="layer" data-shot="S7A" data-in="0"   data-out=".32" data-zoom=".06" data-filter="brightness(.95)"></div>
+    <div class="layer" data-shot="S7B" data-in=".26" data-out=".52" data-zoom=".08" data-filter="brightness(.9)"></div>
+    <div class="layer" data-shot="S7C" data-in=".46" data-out=".74" data-zoom="-.06"></div>
+    <div class="layer" data-shot="S7D" data-in=".68" data-out="1"   data-zoom=".08" data-filter="brightness(.9)"></div>
+    <div class="scrim" aria-hidden="true"></div>
+    <div class="copy">
+      <div class="beat" data-in=".06" data-out=".28"><p class="vo">I began understanding what I was carrying.</p></div>
+      <div class="beat" data-in=".32" data-out=".56"><p class="vo">The attachment. The fear.<br>The loneliness. The rejection.</p></div>
+      <div class="beat" data-in=".66" data-out="1" data-hold="1"><p class="vo">And slowly... very slowly...<br><br><span class="quiet">I finally had somewhere safe to put all the things I'd been carrying alone.</span></p></div>
+    </div>
+  </div>
+</section>
+
+<!-- SCENE 8 — THE MIRROR -->
+<section class="scene" id="s8" data-vh="320" data-vo="vo8" data-side="r" data-bright="1">
+  <div class="pin">
+    <div class="layer" data-shot="S8A" data-in="0" data-out="1" data-zoom=".16" data-filter="brightness(.92)"></div>
+    <div class="scrim" aria-hidden="true"></div>
+    <div class="copy">
+      <div class="beat" data-in=".08" data-out=".26"><p class="vo">Maybe you're staring at your phone right now.</p></div>
+      <div class="beat" data-in=".30" data-out=".48"><p class="vo">Maybe you're exhausted from pretending.</p></div>
+      <div class="beat" data-in=".52" data-out=".70"><p class="vo">Maybe nobody knows how badly you're actually hurting.</p></div>
+      <div class="beat" data-in=".76" data-out=".98"><p class="big">You don't have to.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- SCENE 9 — 1:18, THE OFFER -->
+<section class="scene" id="s9" data-vh="300" data-vo="vo9" data-warmfrom=".35" data-side="c" data-bright="1">
+  <div class="pin">
+    <div class="layer" data-shot="S9A" data-in="0" data-out="1" data-zoom=".06" data-filter="brightness(.88)"></div>
+    <div class="scrim" aria-hidden="true"></div>
+    <div class="copy">
+      <div class="beat" data-in=".10" data-out="1" data-hold="1">
+        <p class="vo">You can start with:</p>
+        <div class="pill" id="pill" role="button" tabindex="0" aria-label="Use this message to start">
+          "I don't know what's happening to me.<br>I just know I'm tired."
+          <small>Tap to use this message</small>
+        </div>
+        <br>
+        <a class="cta" id="cta" href="#talk">Talk to someone →</a>
+        <p class="trust">Private. Compassionate. No judgment.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CONTACT -->
+<section id="talk">
+  <div class="talkbox">
+    <h2>Start with one sentence.</h2>
+    <p class="sub">No forms full of jargon. No waiting rooms. Just tell us where you are — we'll take it from there, gently.</p>
+    <form id="lead-form">
+     <label for="email">Email address</label>
+      <input id="email" name="email" type="email" autocomplete="email" required>
+      <label for="msg">What would you like support with?</label>
+      <textarea id="msg" name="message" data-lenis-prevent aria-label="Your message"></textarea>
+      <button class="cta" type="submit" id="lead-submit">Send my message</button>
+      <p class="form-status" id="lead-status" role="status" aria-live="polite"></p>
+    </form>
+    <div class="talkbtns">
+      <a class="cta" id="wa" href="#" target="_blank" rel="noopener">Send on WhatsApp</a>
+     
+    </div>
+    <p class="fineprint">Your message is confidential. We reply within one working day. <a href="#" id="pricing">See pricing</a> · <a href="#">Privacy</a></p>
+    <p class="crisis">If you are in immediate danger or thinking about harming yourself, please contact your local emergency number or a crisis line right now. This website is not emergency care.</p>
+  </div>
+</section>
+
+</main>
+
+<script>
+/* ============ CONFIG ============ */
+const CI = p => `https://res.cloudinary.com/dsgk1zlj1/image/upload/f_auto,q_auto,w_1920/${p}`;
+const CV = p => `https://res.cloudinary.com/dsgk1zlj1/video/upload/f_auto,q_auto,w_1280/${p}`;
+/* NOTE: if any video fails to load, remove "f_auto,q_auto,w_1280/" from CV above */
+
+const CONFIG = {
+  feel: { duration:1.3, wheel:0.85, touch:1.1 },   /* Lenis: raise duration = dreamier, lower = snappier */
+  shots: {
+    S0A :{img:CI("v1788349642/Woman_lying_on_bed_crying_202609021232_stxbs0.jpg")},
+    S1A :{img:CI("v1788349672/Woman_sitting_at_birthday_party_202609021232_znyfun.jpg")},
+    S1B :{img:CI("v1788349686/Young_woman_taking_selfie_2K_202609021149_ntmxo5.jpg")},
+    S1C :{img:CI("v1788349659/Woman_practicing_smile_at_mirror_202609021232_exmnwx.jpg")},
+    S2A :{img:CI("v1788349664/Woman_reaching_for_smartphone_2K_202609021232_ze10op.jpg")},
+    S2B :{img:CI("v1788349641/Woman_looking_at_phone_glow_202609021233_xxevv7.jpg")},
+    S2C :{img:CI("v1788349659/Woman_placing_smartphone_on_bed_202609021233_q5kwkx.jpg")},
+    S3A :{img:CI("v1788349674/Woman_scrolling_phone_in_bed_202609021233_tct0ut.jpg")},
+    S3B :{img:CI("v1788349649/Woman_lying_down_crying_2K_202609021233_c41u4j.jpg")},
+    S3C :{img:CI("v1788349673/Woman_sitting_on_floor_2K_202609021233_jeaqdh.jpg")},
+    S3D :{img:CI("v1788349660/Woman_pressing_hands_to_face_202609021233_egxnem.jpg")},
+    S4A1:{img:CI("v1788349667/Woman_standing_in_dim_bathroom_202609021233_y3q88c.jpg")},
+    S4B :{img:CI("v1788349634/Woman_holding_smartphone_in_dark_202609021233_h7xaf7.jpg")},
+    S4C :{img:CI("v1788349653/Woman_placing_smartphone_on_floor_202609021233_uhfmej.jpg")},
+    S4D :{img:CI("v1788349680/Woman_whispering_in_bedroom_2K_202609021233_pyk873.jpg")},
+    S5A :{img:CI("v1788349643/Woman_looking_at_phone_screen_202609021232_sdegyt.jpg")},
+    S6A :{img:CI("v1788349673/Woman_waking_up_in_bed_202609021233_xuvnog.jpg")},
+    S7A :{img:CI("v1788349677/Woman_touching_window_curtain_2K_202609021233_fmybnx.jpg")},
+    S7B :{img:CI("v1788349640/Woman_holding_warm_ceramic_mug_202609021234_a99vxf.jpg")},
+    S7C :{img:CI("v1788349653/Woman_placing_smartphone_on_nigh__202609021234_dcaoto.jpg")},
+    S7D :{img:CI("v1788349688/Young_woman_sitting_by_window_202609021234_ijl6f4.jpg")},
+    S8A :{img:CI("v1788349687/Young_woman_looking_past_lens_202609021234_el4rdt.jpg")},
+    S9A :{img:CI("v1788349690/Young_woman_smiling_by_window_202609021234_lgwjrc.jpg")},
+  },
+  videos: {
+    V_LYING :{url:CV("v1788349678/Young_woman_lying_on_bed_202609021135_b26pcj.mp4")},
+    V_PARTY :{url:CV("v1788349633/Woman_at_birthday_party_laughs_202609021135_u5knap.mp4")},
+    V_SELFIE:{url:CV("v1788349688/Young_woman_taking_selfie_202609021134_jxq2xh.mp4")},
+    V_REACH :{url:CV("v1788349659/Woman_reaching_for_glowing_phone_202609021149_qbqxgp.mp4")},
+    V_CRY   :{url:CV("v1788349637/Woman_crying_with_phone_light_202609021149_clnzsq.mp4")},
+    V_PLACE :{url:CV("v1788349659/Woman_placing_phone_on_mattress_202609021149_s66s20.mp4")},
+    V_SCROLL:{url:CV("v1788349668/Woman_scrolling_phone_in_bed_202609021150_fgg0ca.mp4")},
+  },
+  audio: { vo0:null,vo1:null,vo2:null,vo3:null,vo4:null,vo5:null,vo6:null,vo7:null,vo8:null,vo9:null,
+           roomtone:null, drone:null, pad:null },
+  contact: { whatsapp:"", email:"hello@somewheresafe.com", bookingUrl:"", pricingUrl:"#" }
+};
+
+/* ============ LENIS ============ */
+const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+if (RM) document.documentElement.classList.add('rm');
+
+let lenis = null;
+if (!RM && typeof Lenis !== 'undefined') {
+  lenis = new Lenis({
+    duration: CONFIG.feel.duration,        /* seconds of glide after each wheel tick */
+    easing: t => Math.min(1, 1.001 - Math.pow(2, -10 * t)),  /* gentle ease-out */
+    wheelMultiplier: CONFIG.feel.wheel,    /* <1 = calmer wheel */
+    touchMultiplier: CONFIG.feel.touch,
+    smoothWheel: true,
+    syncTouch: false                       /* native momentum on mobile = reliable scrubbing */
+  });
+  lenis.stop();   /* scroll locked until the sound gate is dismissed */
+}
+function scrollToTarget(sel){
+  if (lenis) lenis.scrollTo(sel, { duration: 2.2 });
+  else document.querySelector(sel)?.scrollIntoView({ behavior: 'smooth' });
+}
+
+/* ============ ENGINE ============ */
+const vh=()=>innerHeight;
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const ramp=(p,a,b)=>b<=a?(p>=b?1:0):clamp((p-a)/(b-a),0,1);
+const $=(s,c)=>(c||document).querySelector(s);
+const $$=(s,c)=>[...(c||document).querySelectorAll(s)];
+
+const scenes = $$('.scene').map(el=>{
+  el.style.height = RM ? '' : el.dataset.vh + 'vh';
+  const layers = $$('.layer',el).map(L=>{
+    const id=L.dataset.shot, shot=id&&CONFIG.shots[id];
+    let vid=null;
+    if(L.dataset.video){ const v=CONFIG.videos[L.dataset.video];
+      if(v&&v.url){ vid=document.createElement('video');
+        vid.muted=true; vid.playsInline=true; vid.preload='auto'; vid.className='videoel';
+        L.appendChild(vid); }
+    }
+    return {el:L, id, url:shot?shot.img:null, vid, vsrc:false, applied:false,
+            filter:L.dataset.filter||'',
+            in:+(L.dataset.in||0), out:+(L.dataset.out||1), zoom:+(L.dataset.zoom||0), pany:+(L.dataset.pany||0)};
+  });
+  const beats = $$('.beat',el).map(b=>({el:b,in:+b.dataset.in,out:+b.dataset.out,hold:b.dataset.hold==='1',fade:+(b.dataset.fade||0.07)}));
+  const chips = $$('.chip',el).map(c=>({el:c,at:+c.dataset.at,x:+(c.dataset.x||50),y:+(c.dataset.y||50)}));
+  const spans = $$('.stack span',el).map(s=>({el:s,at:+s.dataset.at}));
+  return {el,side:el.dataset.side||'c',top:0,h:1,p:0,entered:false,
+    slow:el.dataset.slow==='1', drone:+(el.dataset.drone||0),
+    warmfrom:el.dataset.warmfrom!=null?+el.dataset.warmfrom:null,
+    duck:el.dataset.duck?el.dataset.duck.split(',').map(Number):null,
+    layers,beats,chips,spans};
+});
+
+function layout(){ scenes.forEach(s=>{ const r=s.el.getBoundingClientRect();
+  s.top=r.top+scrollY; s.h=s.el.offsetHeight-vh(); }); }
+addEventListener('resize',layout);
+addEventListener('load',layout);
+layout();
+
+/* ---- audio ---- */
+const AU={ok:false,els:{}};
+let duckT=1, duckV=1;
+function auInit(){ if(AU.ok)return; AU.ok=true; const A=CONFIG.audio;
+  ['roomtone','drone','pad'].forEach(k=>{ if(A[k]){const e=new Audio(A[k]);e.loop=true;e.baseVol=k==='roomtone'?.5:0;e.volume=e.baseVol;e.play().catch(()=>{});AU.els[k]=e;}});
+  Object.keys(A).forEach(k=>{ if(k.startsWith('vo')&&A[k]){const e=new Audio(A[k]);e.baseVol=.9;AU.els[k]=e;}});
+}
+function auVO(id){ if(!AU.ok)return; const e=AU.els[id];
+  if(AU.vo&&AU.vo!==e){AU.vo.pause();AU.vo.currentTime=0;}
+  AU.vo=e; if(e){e.currentTime=0;e.play().catch(()=>{});} }
+function auScene(s){ if(!AU.ok)return;
+  if(AU.els.drone) AU.els.drone.baseVol = s.drone===1?.35 : s.drone===2?.6 : 0;
+  if(AU.els.pad)   AU.els.pad.baseVol   = s.warmfrom!=null?.5:0; }
+function dismissGate(){ $('#gate').classList.add('gone'); if(lenis) lenis.start(); }
+ $('#listen').addEventListener('click',()=>{auInit();dismissGate();});
+ $('#mute').addEventListener('click',dismissGate);
+
+/* ---- scrub-reversible typing ---- */
+const typeEl=$('#typebox');
+function typeFrame(p){
+  const seq=[["I miss you",.32,.44,.50,.56],["Can we talk?",.56,.66,.71,.77]];
+  let out="",hit=false;
+  for(const [txt,a,b,c,d] of seq){
+    if(p>=a&&p<b){out=txt.slice(0,Math.ceil(ramp(p,a,b)*txt.length));hit=true;}
+    else if(p>=b&&p<c){out=txt;hit=true;}
+    else if(p>=c&&p<d){out=txt.slice(0,Math.floor((1-ramp(p,c,d))*txt.length));hit=true;}
+    if(hit)break;
+  }
+  if(typeEl.textContent!==out) typeEl.textContent=out;
+}
+
+/* ---- main loop (also drives Lenis) ---- */
+let warm=0,ticked=false;
+const clockEl=$('#clock');
+function frame(time){
+  if(lenis) lenis.raf(time);
+  document.documentElement.style.setProperty('--warm',warm.toFixed(3));
+  warm+=((scrollY/document.documentElement.scrollHeight>.62?1:0)-warm)*.04;
+  duckV+=(duckT-duckV)*.12;
+  if(AU.ok) for(const e of Object.values(AU.els)) e.volume=(e.baseVol||0)*duckV;
+  duckT=1;
+
+  const mobile = innerWidth<900;
+
+  scenes.forEach(s=>{
+    if(RM)return;
+    s.target=s.h>0?clamp((scrollY-s.top)/s.h,0,1):0;
+    s.p+=(s.target-s.p)*(s.slow?.045:.12);
+    if(Math.abs(s.target-s.p)<.0005)s.p=s.target;
+    const p=s.p;
+    if(p>.04&&p<.96&&!s.entered){ s.entered=true;
+      if(AU.ok){auVO(s.el.dataset.vo);auScene(s);}
+      push({event:'scene',id:s.el.id}); }
+    if((p<=.02||p>=.98)&&s.entered)s.entered=false;
+    if(s.duck){const[a,b]=s.duck; if(p>a&&p<b)duckT=0;}
+
+    const near = scrollY > s.top - vh()*2 && scrollY < s.top + s.el.offsetHeight;
+    const tx = (mobile || s.side==='c') ? '-50%' : '0px';
+
+    s.layers.forEach(L=>{
+      if(near&&!L.applied&&L.url){L.el.style.backgroundImage=`url("${L.url}")`;
+        if(L.filter)L.el.style.filter=L.filter;
+        L.applied=true;L.el.innerHTML='';L.el.classList.remove('ph');}
+      if(L.vid&&near&&!L.vsrc){
+        const v=CONFIG.videos[L.el.dataset.video];
+        if(v&&v.url){L.vid.src=v.url;}
+        L.vsrc=true;
+      }
+      const t=ramp(p,L.in,L.out);
+      const vis=ramp(p,L.in,L.in+.06)*(1-ramp(p,L.out-.06,L.out));
+      L.el.style.opacity=vis.toFixed(3);
+      L.el.style.transform=`scale(${(1+L.zoom*t).toFixed(4)})${L.pany?` translateY(${L.pany*t}vh)`:''}`;
+      if(L.vid&&L.vsrc){
+        const want=clamp(t,0,1)*((L.vid.duration||10)-.15);
+        if(L.vid.readyState>=1&&vis>0.01&&Math.abs(L.vid.currentTime-want)>.08)L.vid.currentTime=want;
+      }
+    });
+
+    s.beats.forEach(B=>{
+      const vis=ramp(p,B.in,B.in+B.fade)*(B.hold?1:(1-ramp(p,B.out-.08,B.out)));
+      const y=(1-ramp(p,B.in,B.in+.12))*26;
+      B.el.style.opacity=vis.toFixed(3);
+      B.el.style.transform=`translate(${tx},calc(-50% + ${y.toFixed(1)}px))`;
+      B.el.style.pointerEvents=vis>.5?'auto':'none';
+    });
+
+    s.spans.forEach(sp=>{const v=ramp(p,sp.at,sp.at+.05);
+      sp.el.style.opacity=v.toFixed(3);
+      sp.el.style.transform=`translateY(${((1-v)*14).toFixed(1)}px)`;
+      sp.el.style.filter=`blur(${((1-v)*5).toFixed(1)}px)`;});
+
+    s.chips.forEach(ch=>{const v=ramp(p,ch.at,ch.at+.06)*(1-ramp(p,.5,.58));
+      ch.el.style.opacity=v.toFixed(3);ch.el.style.left=ch.x+'%';ch.el.style.top=ch.y+'%';
+      ch.el.style.transform=`translate(-50%,-50%) translateY(${((1-v)*30).toFixed(1)}px) scale(${(.9+v*.15).toFixed(2)})`;});
+
+    if(s.el.id==='s6')$('#amberfx').style.opacity=ramp(p,.25,.85).toFixed(3);
+    if(s.el.id==='s9'&&p>.38&&!ticked){ticked=true;clockEl.textContent='1:18 AM';clockEl.classList.add('tick');}
+    if(s.el.id==='s9'&&p<.3&&ticked){ticked=false;clockEl.textContent='1:17 AM';clockEl.classList.remove('tick');}
+
+    if(s.el.id==='s4')typeFrame(p);
+  });
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+/* ---- CTA / contact (Lenis-aware anchors) ---- */
+const MSG="I don't know what's happening to me. I just know I'm tired.";
+ $('#msg').value=MSG;
+const leadForm=$('#lead-form');
+const leadSubmit=$('#lead-submit');
+const leadStatus=$('#lead-status');
+leadForm.addEventListener('submit',async e=>{
+  e.preventDefault();
+  const data=new FormData(leadForm);
+  const firstName=String(data.get('firstName')||'').trim();
+  const email=String(data.get('email')||'').trim();
+  leadSubmit.disabled=true;
+  leadStatus.textContent='Sending...';
+  leadStatus.className='form-status';
+  try{
+    const response=await fetch('/api/leads',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({firstName:'user',email,source:'story_scroll'})
+    });
+    if(!response.ok)throw new Error('Lead capture failed');
+    leadStatus.textContent='Thank you. We\'ll be in touch soon.';
+    leadStatus.className='form-status success';
+    leadForm.reset();
+  }catch(error){
+    leadStatus.textContent='We couldn\'t send that right now. Please try again.';
+    leadStatus.className='form-status error';
+  }finally{
+    leadSubmit.disabled=false;
+  }
+});
+function goTalk(e){ if(e)e.preventDefault(); push({event:'cta_click'});
+  if(CONFIG.contact.bookingUrl){open(CONFIG.contact.bookingUrl,'_blank');return;}
+  scrollToTarget('#talk'); setTimeout(()=>$('#msg').focus({preventScroll:true}),900); }
+ $('#help').addEventListener('click',e=>{e.preventDefault();push({event:'help_click'});scrollToTarget('#talk');});
+ $('#cta').addEventListener('click',goTalk);
+ $('#pill').addEventListener('click',()=>{scrollToTarget('#talk');$('#msg').value=MSG;
+  setTimeout(()=>$('#msg').focus({preventScroll:true}),900);push({event:'pill_use'});});
+ $('#pill').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();$('#pill').click();}});
+ $('#pricing').href=CONFIG.contact.pricingUrl;
+if(CONFIG.contact.whatsapp){$('#wa').href=`https://wa.me/${CONFIG.contact.whatsapp}?text=${encodeURIComponent(MSG)}`;}else $('#wa').style.display='none';
+ $('#mail').href=`mailto:${CONFIG.contact.email}?subject=${encodeURIComponent('I don\u2019t know how to start')}&body=${encodeURIComponent(MSG)}`;
+
+function push(d){ if(window.dataLayer)dataLayer.push(d); else console.log('[track]',d); }
+
+if(new URLSearchParams(location.search).has('debug')){
+  const d=document.createElement('div');
+  d.style.cssText='position:fixed;top:14px;left:16px;z-index:90;font:11px monospace;color:#8a9184';
+  document.body.appendChild(d);
+  setInterval(()=>{const a=scenes.find(s=>s.p>0&&s.p<1);d.textContent=a?`${a.el.id}  ${(a.p*100).toFixed(1)}%  (${a.side})`:'';},120);
+}
+</script>
+</body>
+</html>
