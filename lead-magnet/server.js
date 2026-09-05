@@ -52,7 +52,7 @@ async function sendEmailSafe({ to, subject, html }) {
   }
   try {
     const { data, error } = await resend.emails.send({
-      from: 'Clarity Care <support@claritycare.com>', // must be a verified domain in Resend
+      from: 'Clover Heart Haven <support@cloverhearthaven.com>', // must be a verified domain in Resend
       to,
       subject,
       html
@@ -97,10 +97,10 @@ app.post('/api/leads', async (req, res) => {
       subject: 'Why You Still Miss Them — Your Free Guide',
       html: `
         <p>Hi ${firstName},</p>
-        <p>Thank you for reaching out to Clarity Care. Here is your copy of <strong>Why You Still Miss Them</strong>.</p>
+        <p>Thank you for reaching out to Clover Heart Haven. Here is your copy of <strong>Why You Still Miss Them</strong>.</p>
         <p><a href="https://res.cloudinary.com/dsgk1zlj1/image/upload/v1786751973/guide.pdf">Download Your PDF Guide Here</a></p>
         <p>Take your time reading through it. We are here whenever you're ready.</p>
-        <p>Warmly,<br>The Clarity Care Team</p>
+        <p>Warmly,<br>The Clover Heart Haven Team</p>
       `
     });
 
@@ -161,8 +161,8 @@ app.post('/api/vi/bookings', async (req, res) => {
     if (email) {
       await sendEmailSafe({
         to: email,
-        subject: 'Confirmed: Your Clarity Call',
-        html: `<p>Your 30-minute private clarity call has been scheduled for <strong>${date} at ${time}</strong>.</p>`
+        subject: 'Confirmed: Your Clover Heart Haven Call',
+        html: `<p>Your 30-minute private consultation call has been scheduled for <strong>${date} at ${time}</strong>.</p>`
       });
     }
 

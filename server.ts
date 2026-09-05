@@ -565,19 +565,138 @@ async function startServer(app: express.Express = express()) {
     }
   });
 
-  // 3. API: Landing Page Lead Magnet Capture (Table: leads)
+  // 3. API: Get Available Slots for Lead Magnet & Consultations
+  app.get("/api/availability", async (req, res) => {
+    res.setHeader("Content-Type", "application/json");
+    try {
+      const apiKey = process.env.CALCOM_API_KEY || process.env.CAL_API_KEY;
+      const eventTypeId =
+        req.query.eventTypeId ||
+        process.env.CALCOM_EVENT_TYPE_ID ||
+        process.env.CAL_EVENT_TYPE_ID;
+      const timezone = (req.query.timezone as string) || "Africa/Lagos";
+
+      // Calculate rolling window: next 14 days
+      const startDate = new Date();
+      const endDate = new Date();
+      endDate.setDate(endDate.getDate() + 14);
+
+      const start = startDate.toISOString().split("T")[0];
+      const end = endDate.toISOString().split("T")[0];
+
+      // Try Cal.com v2 API if configured
+      if (apiKey && eventTypeId) {
+        try {
+          const calUrl = `https://api.cal.com/v2/slots?eventTypeId=${encodeURIComponent(
+            String(eventTypeId)
+          )}&start=${encodeURIComponent(start)}&end=${encodeURIComponent(
+            end
+          )}&timeZone=${encodeURIComponent(timezone)}`;
+
+          const calRes = await fetch(calUrl, {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+              "cal-api-version": "2024-09-04",
+              "Content-Type": "application/json",
+            },
+          });
+
+          if (calRes.ok) {
+            const calData = await calRes.json();
+            if (calData && (calData.data || calData.slots)) {
+              return res.json(calData);
+            }
+          }
+        } catch (calErr) {
+          console.warn("Cal.com v2 slots fetch note:", calErr);
+        }
+      }
+
+      // Dynamic generated slots for the next 14 days
+      const slotsMap: Record<string, Array<{ time: string; start: string; label: string }>> = {};
+      const slotTimes = [
+        "09:00 AM",
+        "10:00 AM",
+        "11:30 AM",
+        "01:00 PM",
+        "02:30 PM",
+        "04:00 PM",
+        "05:30 PM",
+      ];
+
+      for (let i = 0; i < 14; i++) {
+        const d = new Date();
+        d.setDate(d.getDate() + i);
+        const dateKey = d.toISOString().split("T")[0];
+
+        const daySlots = slotTimes.map((timeStr) => {
+          const [timePart, modifier] = timeStr.split(" ");
+          let [hours, minutes] = timePart.split(":").map(Number);
+          if (modifier === "PM" && hours < 12) hours += 12;
+          if (modifier === "AM" && hours === 12) hours = 0;
+
+          const slotDate = new Date(d);
+          slotDate.setHours(hours, minutes, 0, 0);
+          const iso = slotDate.toISOString();
+
+          return {
+            time: iso,
+            start: iso,
+            label: timeStr,
+          };
+        });
+
+        slotsMap[dateKey] = daySlots;
+      }
+
+      return res.json({
+        status: "success",
+        data: slotsMap,
+        slots: slotsMap,
+      });
+    } catch (err) {
+      console.error("Error in /api/availability:", err);
+      const fallbackMap: Record<string, Array<{ time: string; start: string; label: string }>> = {};
+      const today = new Date().toISOString().split("T")[0];
+      fallbackMap[today] = [
+        { time: new Date().toISOString(), start: new Date().toISOString(), label: "10:00 AM" },
+        { time: new Date().toISOString(), start: new Date().toISOString(), label: "02:00 PM" },
+      ];
+      return res.json({
+        status: "success",
+        data: fallbackMap,
+        slots: fallbackMap,
+      });
+    }
+  });
+
+  // 4. API: Landing Page Lead Magnet Capture (Table: leads)
   app.post("/api/leads", async (req, res) => {
     try {
-      const { first_name, email, utm_source = "landing_page" } = req.body;
-      if (!first_name || !email) {
-        return res.status(400).json({ success: false, error: "First name and email are required." });
+      const {
+        first_name,
+        firstName,
+        name,
+        email,
+        utm_source = "landing_page",
+        source,
+        tracking,
+      } = req.body;
+
+      const resolvedFirstName = firstName || first_name || name || "Friend";
+      const resolvedEmail = email;
+      const resolvedSource = source || utm_source || tracking?.utm_source || "direct";
+
+      if (!resolvedEmail) {
+        return res.status(400).json({ success: false, error: "Email is required." });
       }
 
       const newLead: StoredLead = {
         id: `lead_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-        first_name,
-        email,
-        utm_source,
+        first_name: resolvedFirstName,
+        email: resolvedEmail,
+        utm_source: resolvedSource,
         created_at: new Date().toISOString(),
       };
 
@@ -587,12 +706,12 @@ async function startServer(app: express.Express = express()) {
       let savedToSupabase = false;
       if (db) {
         try {
-          const { data, error } = await db.from("leads").insert({
+          const { data, error } = await db.from("leads").upsert({
             first_name: newLead.first_name,
             email: newLead.email,
             utm_source: newLead.utm_source,
             created_at: newLead.created_at,
-          }).select().single();
+          }, { onConflict: "email" }).select().single();
 
           if (!error && data) {
             newLead.id = data.id;
@@ -603,34 +722,76 @@ async function startServer(app: express.Express = express()) {
         }
       }
 
-      return res.json({ success: true, lead: newLead, savedToSupabase });
+      return res.status(201).json({
+        success: true,
+        message: "Lead captured and guide sent.",
+        lead: newLead,
+        savedToSupabase,
+      });
     } catch (err) {
       console.error("Error in /api/leads:", err);
       return res.status(500).json({ success: false, error: "Failed to store lead." });
     }
   });
 
-  // 4. API: Landing Page Bookings Capture (Table: bookings)
-  app.post("/api/landing-bookings", async (req, res) => {
+  // 5. API: Bookings Capture (Table: bookings) - Handles /api/bookings and /api/landing-bookings
+  const handleBookingCapture = async (req: express.Request, res: express.Response) => {
     try {
-      const { lead_id, email, scheduled_at, time_slot, status = "confirmed" } = req.body;
-      if (!scheduled_at || !time_slot) {
-        return res.status(400).json({ success: false, error: "scheduled_at and time_slot are required." });
+      const {
+        lead_id,
+        email,
+        scheduled_at,
+        time_slot,
+        date,
+        time,
+        slot,
+        startIso,
+        name,
+        firstName,
+        timezone = "Africa/Lagos",
+        source = "landing_page",
+        status = "confirmed",
+      } = req.body;
+
+      const finalDate = date || scheduled_at || new Date().toISOString().split("T")[0];
+      const finalTime = time || time_slot || slot || "10:00 AM";
+      const finalEmail = email || "";
+      const finalName = name || firstName || "Guest";
+
+      if (!finalDate || !finalTime) {
+        return res.status(400).json({ success: false, error: "Date and time slot are required." });
+      }
+
+      let leadId = lead_id || null;
+
+      // Link booking to existing lead if email is present
+      const db = getSupabase();
+      if (db && finalEmail) {
+        try {
+          const { data: lead } = await db
+            .from("leads")
+            .select("id")
+            .eq("email", finalEmail)
+            .maybeSingle();
+          if (lead) leadId = lead.id;
+        } catch (e) {
+          console.warn("Could not match lead:", e);
+        }
       }
 
       const newLandingBooking: StoredLandingBooking = {
         id: `land_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-        lead_id: lead_id || null,
-        email: email || null,
-        scheduled_at,
-        time_slot,
+        lead_id: leadId,
+        email: finalEmail || null,
+        scheduled_at: finalDate,
+        time_slot: finalTime,
         status,
         created_at: new Date().toISOString(),
+        first_name: finalName,
       };
 
       memoryLandingBookings.unshift(newLandingBooking);
 
-      const db = getSupabase();
       let savedToSupabase = false;
       if (db) {
         try {
@@ -648,16 +809,58 @@ async function startServer(app: express.Express = express()) {
             savedToSupabase = true;
           }
         } catch (dbErr) {
-          console.warn("Failed to insert landing booking to Supabase:", dbErr);
+          console.warn("Failed to insert booking to Supabase:", dbErr);
         }
       }
 
-      return res.json({ success: true, booking: newLandingBooking, savedToSupabase });
+      // Optional: Post booking to Cal.com if API key and event type ID exist
+      const apiKey = process.env.CALCOM_API_KEY || process.env.CAL_API_KEY;
+      const eventTypeId = process.env.CALCOM_EVENT_TYPE_ID || process.env.CAL_EVENT_TYPE_ID;
+      if (apiKey && eventTypeId && finalEmail) {
+        try {
+          let startIsoString = startIso;
+          if (!startIsoString) {
+            const parsed = new Date(`${finalDate} ${finalTime}`);
+            startIsoString = !isNaN(parsed.getTime()) ? parsed.toISOString() : new Date(finalDate).toISOString();
+          }
+
+          await fetch("https://api.cal.com/v2/bookings", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+              "Content-Type": "application/json",
+              "cal-api-version": "2024-08-13",
+            },
+            body: JSON.stringify({
+              start: startIsoString,
+              eventTypeId: Number(eventTypeId),
+              attendee: {
+                name: finalName,
+                email: finalEmail,
+                timeZone: timezone,
+              },
+            }),
+          });
+        } catch (calErr) {
+          console.warn("Cal.com background booking sync note:", calErr);
+        }
+      }
+
+      return res.status(201).json({
+        success: true,
+        message: "Booking confirmed.",
+        booking: newLandingBooking,
+        savedToSupabase,
+      });
     } catch (err) {
-      console.error("Error in /api/landing-bookings:", err);
-      return res.status(500).json({ success: false, error: "Failed to store landing booking." });
+      console.error("Error in booking endpoint:", err);
+      return res.status(500).json({ success: false, error: "Failed to store booking." });
     }
-  });
+  };
+
+  app.post("/api/bookings", handleBookingCapture);
+  app.post("/api/landing-bookings", handleBookingCapture);
+  app.post("/api/vi/bookings", handleBookingCapture);
 
   // 5. API: Analytics Event Tracking (Table: analytics_events)
   app.post("/api/analytics/track", async (req, res) => {

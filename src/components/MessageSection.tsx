@@ -119,10 +119,10 @@ export const MessageSection: React.FC = () => {
           {/* New Prominent CTA Button */}
           <div className="shrink-0 pt-2 sm:pt-0">
             <button
-              onClick={() => handleOpenModal('Free Private Clarity Call')}
+              onClick={() => handleOpenModal('Free Private Clover Heart Haven Call')}
               className="inline-flex items-center gap-3 bg-[#e8ede2] hover:bg-white text-[#132212] text-xs sm:text-sm md:text-base font-bold px-7 py-4 sm:px-8 sm:py-4.5 rounded-full transition-all duration-300 shadow-2xl hover:shadow-white/20 hover:scale-105 active:scale-95 cursor-pointer uppercase tracking-wider font-['Plus_Jakarta_Sans'] group whitespace-nowrap"
             >
-              <span>BOOK YOUR FREE PRIVATE CLARITY CALL</span>
+              <span>BOOK YOUR FREE PRIVATE CLOVER HEART HAVEN CALL</span>
               <span className="text-lg leading-none group-hover:translate-x-1 transition-transform">→</span>
             </button>
           </div>
