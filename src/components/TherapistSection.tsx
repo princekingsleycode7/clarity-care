@@ -18,7 +18,12 @@ interface Testimonial {
   rating: number;
 }
 
-export const TherapistSection: React.FC = () => {
+interface TherapistSectionProps {
+  onNavigate?: (nav: string) => void;
+  onOpenConsultation?: () => void;
+}
+
+export const TherapistSection: React.FC<TherapistSectionProps> = ({ onNavigate, onOpenConsultation }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [hoveredTestimonial, setHoveredTestimonial] = useState<number | null>(null);
   const sectionRef = useRef<HTMLElement>(null);
@@ -220,14 +225,14 @@ export const TherapistSection: React.FC = () => {
           {/* Action Buttons */}
           <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
             <button
-              onClick={() => setIsModalOpen(true)}
+              onClick={() => onOpenConsultation ? onOpenConsultation() : setIsModalOpen(true)}
               className="bg-[#ff4a1c] hover:bg-[#e23b10] text-white text-xs sm:text-sm font-bold px-6 py-3.5 sm:px-7 sm:py-3.5 rounded-xl transition-all duration-200 shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-95 cursor-pointer uppercase tracking-wider"
             >
               BOOK A SESSION
             </button>
 
             <button
-              onClick={() => setIsModalOpen(true)}
+              onClick={() => onNavigate ? onNavigate('About') : window.location.assign('/about')}
               className="bg-transparent hover:bg-[#1c2c19]/5 text-[#1c2c19] border border-[#1c2c19] text-xs sm:text-sm font-bold px-6 py-3.5 sm:px-7 sm:py-3.5 rounded-xl transition-all duration-200 cursor-pointer uppercase tracking-wider"
             >
               BROWSE THERAPIST

@@ -15,6 +15,11 @@ import { ServicesPage } from './components/ServicesPage';
 import { ReviewsPage } from './components/ReviewsPage';
 import { ContactPage } from './components/ContactPage';
 import { LandingPage } from './components/LandingPage';
+import { TermsPage } from './components/TermsPage';
+import { PrivacyPage } from './components/PrivacyPage';
+import { CookiesPage } from './components/CookiesPage';
+import { CookieBanner } from './components/CookieBanner';
+import { BookingPage } from './components/BookingPage';
 import { Footer } from './components/Footer';
 import { ContactModal } from './components/ContactModal';
 import { AdminDashboard } from './components/AdminDashboard';
@@ -29,7 +34,18 @@ const getNavFromPath = (path: string): string => {
   if (cleanPath === '/about' || cleanPath === '/about-doctor') return 'About';
   if (cleanPath === '/services' || cleanPath === '/service' || cleanPath === '/techniques') return 'Service';
   if (cleanPath === '/reviews' || cleanPath === '/stories') return 'Reviews';
-  if (cleanPath === '/contact' || cleanPath === '/book') return 'Contact';
+  if (
+    cleanPath === '/book-session' || 
+    cleanPath === '/book' || 
+    cleanPath === '/schedule' || 
+    cleanPath === '/booking' || 
+    cleanPath === '/schedule-session' || 
+    cleanPath === '/book-call'
+  ) return 'Booking';
+  if (cleanPath === '/contact') return 'Contact';
+  if (cleanPath === '/terms' || cleanPath === '/terms-of-service') return 'Terms';
+  if (cleanPath === '/privacy' || cleanPath === '/privacy-policy') return 'Privacy';
+  if (cleanPath === '/cookies' || cleanPath === '/cookie-preferences') return 'Cookies';
   return 'Home';
 };
 
@@ -40,7 +56,11 @@ const getPathFromNav = (nav: string): string => {
     case 'About': return '/about';
     case 'Service': return '/services';
     case 'Reviews': return '/reviews';
+    case 'Booking': return '/book-session';
     case 'Contact': return '/contact';
+    case 'Terms': return '/terms';
+    case 'Privacy': return '/privacy';
+    case 'Cookies': return '/cookies';
     default: return '/';
   }
 };
@@ -221,7 +241,10 @@ export default function App() {
             </section>
             <SupportSection />
             <WhatWeHelpWithSection />
-            <TherapistSection />
+            <TherapistSection 
+              onNavigate={handleNavChange}
+              onOpenConsultation={() => handleOpenConsultation('Therapist Section Consultation')}
+            />
             <BookingProcessSection onOpenConsultation={() => handleOpenConsultation('Booking Consultation Process')} />
             <TransitionShowcaseSection onOpenConsultation={() => handleOpenConsultation('Clarity Consultation')} />
             <RealStoriesSection />
@@ -251,6 +274,12 @@ export default function App() {
           />
         )}
 
+        {activeNav === 'Booking' && (
+          <BookingPage 
+            onNavigate={handleNavChange}
+          />
+        )}
+
         {activeNav === 'LandingPage' && (
           <LandingPage 
             onBookConsultation={handleOpenConsultation}
@@ -264,10 +293,33 @@ export default function App() {
             onOpenOnboarding={() => handleOpenConsultation('Contact Hub Cal.com Booking')}
           />
         )}
+
+        {activeNav === 'Terms' && (
+          <TermsPage 
+            onNavigate={handleNavChange}
+            onBookConsultation={() => handleOpenConsultation('Terms of Service Consultation')}
+          />
+        )}
+
+        {activeNav === 'Privacy' && (
+          <PrivacyPage 
+            onNavigate={handleNavChange}
+            onOpenCookies={() => handleNavChange('Cookies')}
+          />
+        )}
+
+        {activeNav === 'Cookies' && (
+          <CookiesPage 
+            onNavigate={handleNavChange}
+          />
+        )}
       </main>
 
       {/* Global Comprehensive Footer with connected navigation */}
       <Footer onNavigate={handleNavChange} />
+
+      {/* Global Cookie Consent & Privacy Banner */}
+      <CookieBanner onNavigateToCookies={() => handleNavChange('Cookies')} />
 
       {/* Global Instant Booking & Consultation Modal */}
       <ContactModal

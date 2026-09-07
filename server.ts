@@ -1,8 +1,10 @@
 import express from "express";
 import path from "path";
+import fs from "fs";
 import { createServer as createViteServer } from "vite";
 import dotenv from "dotenv";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { Resend } from "resend";
 
 dotenv.config();
 
@@ -25,6 +27,113 @@ function getSupabase(): SupabaseClient | null {
     }
   }
   return supabase;
+}
+
+// Initialize Resend Client lazily and safely
+let resendClient: Resend | null = null;
+function getResend(): Resend | null {
+  const key = process.env.RESEND_API_KEY;
+  if (!key || key.includes("re_xxxxxxxx") || key.trim() === "") {
+    return null;
+  }
+  if (!resendClient) {
+    try {
+      resendClient = new Resend(key);
+      console.log("Initialized Resend email client successfully.");
+    } catch (e) {
+      console.warn("Failed to initialize Resend client:", e);
+    }
+  }
+  return resendClient;
+}
+
+// Safe email dispatch function (never throws, logs clear diagnostic info)
+async function sendEmailSafe({ to, subject, html }: { to: string; subject: string; html: string }) {
+  const resend = getResend();
+  if (!resend) {
+    console.warn(`[Resend Skipped] Email to ${to} skipped — RESEND_API_KEY not configured or placeholder.`);
+    return null;
+  }
+  try {
+    const fromDomain =
+      process.env.RESEND_FROM_EMAIL ||
+      process.env.EMAIL_FROM ||
+      "Clover Heart Haven <onboarding@resend.dev>";
+
+    const { data, error } = await resend.emails.send({
+      from: fromDomain,
+      to,
+      subject,
+      html,
+    });
+
+    if (error) {
+      console.error("[Resend Error]:", error);
+      return null;
+    }
+    console.log(`[Resend Success] Email sent successfully to ${to} (Email ID: ${data?.id || "sent"})`);
+    return data;
+  } catch (err) {
+    console.error("[Resend Exception]:", err);
+    return null;
+  }
+}
+
+// Background AI Personalized Followup Generation (supports Gemini and OpenAI)
+async function generatePersonalizedFollowup(leadId: string | null, firstName: string, utmSource: string) {
+  try {
+    let generatedCopy = "";
+    const prompt = `Write a gentle, highly empathetic Day-2 follow-up email for ${firstName}, who just downloaded the guide "Why You Still Miss Them". 
+They came from ad/marketing channel: "${utmSource}". 
+Keep it concise, compassionate, non-salesy, and focused on emotional self-compassion. Include the direct booking link: "/book-session?name=${encodeURIComponent(firstName)}&source=email_nurture_day2" for a private 30-minute consultation with Dr. Vance.`;
+
+    if (process.env.GEMINI_API_KEY) {
+      const { GoogleGenAI } = await import("@google/genai");
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: prompt,
+      });
+      generatedCopy = response.text || "";
+    } else if (process.env.OPENAI_API_KEY && !process.env.OPENAI_API_KEY.includes("your-openai-api-key")) {
+      const openAiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: "gpt-4o-mini",
+          messages: [{ role: "user", content: prompt }],
+          temperature: 0.7,
+        }),
+      });
+      if (openAiRes.ok) {
+        const completionData: any = await openAiRes.json();
+        generatedCopy = completionData.choices?.[0]?.message?.content || "";
+      }
+    }
+
+    if (generatedCopy) {
+      const db = getSupabase();
+      if (db && leadId) {
+        try {
+          await db.from("email_queue").insert({
+            lead_id: leadId,
+            email_type: "followup_day_2",
+            subject: `Checking in, ${firstName}`,
+            body_html: generatedCopy,
+            scheduled_for: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+          });
+          console.log(`[AI Follow-up Success] Queued Day-2 follow-up email for ${firstName} in email_queue`);
+        } catch (dbErr) {
+          console.warn("Notice saving to email_queue in Supabase:", dbErr);
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("Notice generating AI follow-up sequence:", err);
+  }
 }
 
 // 1. Clover Heart Haven Intake Booking Data Structure (Table: productionbookings)
@@ -50,6 +159,8 @@ export interface StoredLead {
   email: string;
   utm_source?: string | null;
   created_at: string;
+  phone?: string;
+  notes?: string;
 }
 
 // 3. Landing Page Booking Data Structure (Table: bookings)
@@ -350,7 +461,22 @@ async function updateLandingBookingInSupabase(db: SupabaseClient, id: string, st
 async function startServer(app: express.Express = express()) {
   const PORT = Number(process.env.PORT) || 3000;
 
+  // CORS middleware allowing cross-origin requests from landing pages and local previews
+  app.use((req, res, next) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+    res.header(
+      "Access-Control-Allow-Headers",
+      "Origin, X-Requested-With, Content-Type, Accept, x-admin-password, Authorization"
+    );
+    if (req.method === "OPTIONS") {
+      return res.sendStatus(204);
+    }
+    next();
+  });
+
   app.use(express.json());
+  app.use(express.urlencoded({ extended: true }));
 
   const formatYMD = (dateStr: string) => {
     try {
@@ -671,25 +797,38 @@ async function startServer(app: express.Express = express()) {
     }
   });
 
-  // 4. API: Landing Page Lead Magnet Capture (Table: leads)
+  // 4. API: Lead Capture (Table: leads) - handles landing forms, story forms, and contact forms
   app.post("/api/leads", async (req, res) => {
     try {
       const {
         first_name,
         firstName,
         name,
+        fullName,
         email,
+        phone,
+        notes,
+        message,
+        serviceInterest,
         utm_source = "landing_page",
         source,
         tracking,
       } = req.body;
 
-      const resolvedFirstName = firstName || first_name || name || "Friend";
-      const resolvedEmail = email;
-      const resolvedSource = source || utm_source || tracking?.utm_source || "direct";
+      // Extract a meaningful first name
+      let resolvedFirstName = (firstName || first_name || fullName || name || "").trim();
+      if (!resolvedFirstName && email) {
+        const localPart = email.split("@")[0].replace(/[._-]/g, " ");
+        resolvedFirstName = localPart.charAt(0).toUpperCase() + localPart.slice(1);
+      }
+      if (!resolvedFirstName) resolvedFirstName = "Friend";
+
+      const resolvedEmail = (email || "").trim();
+      const resolvedSource = source || utm_source || tracking?.utm_source || "contact_section";
+      const resolvedNotes = notes || message || (serviceInterest ? `Service: ${serviceInterest}` : "");
 
       if (!resolvedEmail) {
-        return res.status(400).json({ success: false, error: "Email is required." });
+        return res.status(400).json({ success: false, error: "Email address is required." });
       }
 
       const newLead: StoredLead = {
@@ -698,39 +837,142 @@ async function startServer(app: express.Express = express()) {
         email: resolvedEmail,
         utm_source: resolvedSource,
         created_at: new Date().toISOString(),
+        phone: phone ? String(phone).trim() : undefined,
+        notes: resolvedNotes ? String(resolvedNotes).trim() : undefined,
       };
 
-      memoryLeads.unshift(newLead);
+      // Add to in-memory store (update if email exists, or prepend)
+      const existingIdx = memoryLeads.findIndex(
+        (l) => l.email.toLowerCase() === resolvedEmail.toLowerCase()
+      );
+      if (existingIdx >= 0) {
+        memoryLeads[existingIdx] = {
+          ...memoryLeads[existingIdx],
+          ...newLead,
+          id: memoryLeads[existingIdx].id,
+        };
+      } else {
+        memoryLeads.unshift(newLead);
+      }
+
+      // If phone or message came through contact/consultation, also optionally record in production bookings
+      if (phone || serviceInterest) {
+        const contactBooking: StoredProductionBooking = {
+          id: `inq_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+          reference: `CHH-INQ-${Math.floor(100000 + Math.random() * 900000)}`,
+          name: resolvedFirstName,
+          phone: phone ? String(phone).trim() : "Pending",
+          address: "Direct Clinic Inquiry / Contact Form",
+          email: resolvedEmail,
+          selected_date: "General Consultation Request",
+          selected_time: "Flexible Callback",
+          timezone: "America/Los_Angeles",
+          status: "confirmed",
+          notes: resolvedNotes || "Submitted via Contact Form",
+          created_at: new Date().toISOString(),
+        };
+        memoryProductionBookings.unshift(contactBooking);
+        const dbForBooking = getSupabase();
+        if (dbForBooking) {
+          try {
+            await insertProductionBookingToSupabase(dbForBooking, contactBooking);
+          } catch (bErr) {
+            console.warn("Non-blocking inquiry insert error:", bErr);
+          }
+        }
+      }
 
       const db = getSupabase();
       let savedToSupabase = false;
       if (db) {
         try {
-          const { data, error } = await db.from("leads").upsert({
-            first_name: newLead.first_name,
-            email: newLead.email,
-            utm_source: newLead.utm_source,
-            created_at: newLead.created_at,
-          }, { onConflict: "email" }).select().single();
+          const { data, error } = await db.from("leads").upsert(
+            {
+              first_name: newLead.first_name,
+              email: newLead.email,
+              utm_source: newLead.utm_source,
+              created_at: newLead.created_at,
+            },
+            { onConflict: "email" }
+          ).select().single();
 
           if (!error && data) {
             newLead.id = data.id;
             savedToSupabase = true;
+          } else {
+            // Fallback: standard insert in case email has no unique constraint
+            const { data: insData, error: insError } = await db.from("leads").insert({
+              first_name: newLead.first_name,
+              email: newLead.email,
+              utm_source: newLead.utm_source,
+              created_at: newLead.created_at,
+            }).select().single();
+
+            if (!insError && insData) {
+              newLead.id = insData.id;
+              savedToSupabase = true;
+            } else {
+              console.warn("Notice inserting lead to Supabase:", insError || error);
+            }
           }
         } catch (dbErr) {
           console.warn("Failed to insert lead to Supabase:", dbErr);
         }
       }
 
+      // Replicated from lead-magnet/server.js: Dispatch transactional email with Free Guide PDF
+      sendEmailSafe({
+        to: resolvedEmail,
+        subject: "Why You Still Miss Them — Your Free Guide",
+        html: `
+          <p>Hi ${resolvedFirstName},</p>
+          <p>Thank you for reaching out to Clover Heart Haven. Here is your copy of <strong>Why You Still Miss Them</strong>.</p>
+          <p><a href="https://res.cloudinary.com/dsgk1zlj1/image/upload/v1786751973/guide.pdf">Download Your PDF Guide Here</a></p>
+          <p>Take your time reading through it. We are here whenever you're ready.</p>
+          <p>Warmly,<br>The Clover Heart Haven Team</p>
+        `,
+      }).catch((e) => console.warn("Background lead guide email dispatch warning:", e));
+
+      // Async Step: Pre-generate AI personalized email sequence in background
+      generatePersonalizedFollowup(newLead.id, resolvedFirstName, resolvedSource).catch((e) =>
+        console.warn("Background AI sequence warning:", e)
+      );
+
       return res.status(201).json({
         success: true,
-        message: "Lead captured and guide sent.",
+        message: "Lead recorded successfully.",
         lead: newLead,
         savedToSupabase,
       });
     } catch (err) {
       console.error("Error in /api/leads:", err);
       return res.status(500).json({ success: false, error: "Failed to store lead." });
+    }
+  });
+
+  app.get("/api/leads", async (req, res) => {
+    try {
+      const db = getSupabase();
+      if (db) {
+        const { data, error } = await db.from("leads").select("*").order("created_at", { ascending: false });
+        if (!error && data) return res.json({ success: true, leads: data });
+      }
+      return res.json({ success: true, leads: memoryLeads });
+    } catch (err) {
+      return res.status(500).json({ success: false, error: "Failed to get leads" });
+    }
+  });
+
+  app.get("/api/bookings", async (req, res) => {
+    try {
+      const db = getSupabase();
+      if (db) {
+        const { data, error } = await db.from("bookings").select("*").order("created_at", { ascending: false });
+        if (!error && data) return res.json({ success: true, bookings: data });
+      }
+      return res.json({ success: true, bookings: memoryLandingBookings });
+    } catch (err) {
+      return res.status(500).json({ success: false, error: "Failed to get bookings" });
     }
   });
 
@@ -846,6 +1088,20 @@ async function startServer(app: express.Express = express()) {
         }
       }
 
+      // Replicated from lead-magnet/server.js: Send booking confirmation email if email provided
+      if (finalEmail) {
+        sendEmailSafe({
+          to: finalEmail,
+          subject: "Confirmed: Your Clover Heart Haven Call",
+          html: `
+            <p>Hi ${finalName},</p>
+            <p>Your 30-minute private consultation call has been scheduled for <strong>${finalDate} at ${finalTime}</strong>.</p>
+            <p>We'll hold this time for you. A therapist will be ready to listen and answer any questions with gentle care.</p>
+            <p>Warmly,<br>The Clover Heart Haven Team</p>
+          `,
+        }).catch((e) => console.warn("Background booking confirmation email warning:", e));
+      }
+
       return res.status(201).json({
         success: true,
         message: "Booking confirmed.",
@@ -924,19 +1180,55 @@ async function startServer(app: express.Express = express()) {
     }
   });
 
-  // 6. API: Comprehensive Admin Data Aggregator
+  // Helper to verify admin authorization for all protected admin routes
+  const verifyAdminRequest = (req: express.Request, res: express.Response): boolean => {
+    const provided =
+      (req.headers["x-admin-password"] as string) ||
+      (req.headers["x-admin-passcode"] as string) ||
+      (req.headers["authorization"]?.replace(/^Bearer\s+/i, "") as string) ||
+      (req.query.password as string) ||
+      (req.query.passcode as string) ||
+      (req.body?.password as string) ||
+      (req.body?.passcode as string);
+
+    // Check password from environment variable (.env)
+    const configuredPassword =
+      process.env.ADMIN_PASSWORD ||
+      process.env.ADMIN_PASSCODE ||
+      process.env.ADMIN_SECRET ||
+      process.env.ADMIN_KEY;
+
+    if (!provided || typeof provided !== "string" || !provided.trim()) {
+      res.status(401).json({ success: false, error: "Authentication required. Please provide the admin password." });
+      return false;
+    }
+
+    if (configuredPassword && configuredPassword.trim()) {
+      if (provided.trim() !== configuredPassword.trim()) {
+        res.status(401).json({ success: false, error: "Invalid administrator password. Access denied." });
+        return false;
+      }
+    } else {
+      // Fallback only if no env variable is configured in the environment
+      if (provided.trim() !== "clover2026") {
+        res.status(401).json({ success: false, error: "Invalid administrator password. Access denied." });
+        return false;
+      }
+    }
+
+    return true;
+  };
+
+  // 6. API: Admin Verification Check
+  app.post("/api/admin/verify", (req, res) => {
+    if (!verifyAdminRequest(req, res)) return;
+    return res.json({ success: true, message: "Admin authenticated successfully." });
+  });
+
+  // 7. API: Comprehensive Admin Data Aggregator (Strictly Password-Gated)
   app.get("/api/admin/data", async (req, res) => {
     try {
-      const providedPasscode =
-        (req.headers["x-admin-passcode"] as string) ||
-        (req.query.passcode as string);
-      const expectedPasscode = process.env.ADMIN_PASSCODE;
-
-      if (expectedPasscode && providedPasscode) {
-        if (providedPasscode !== expectedPasscode && providedPasscode !== "clover2026") {
-          return res.status(401).json({ success: false, error: "Invalid Admin Passcode" });
-        }
-      }
+      if (!verifyAdminRequest(req, res)) return;
 
       const db = getSupabase();
       let prodBookingsList: StoredProductionBooking[] = [...memoryProductionBookings];
@@ -948,20 +1240,30 @@ async function startServer(app: express.Express = express()) {
         try {
           // 1. Fetch productionbookings
           const dbProdBookings = await fetchProductionBookingsFromSupabase(db);
-          if (dbProdBookings) {
-            prodBookingsList = dbProdBookings;
+          if (dbProdBookings && dbProdBookings.length > 0) {
+            const dbRefs = new Set(dbProdBookings.map((b) => (b.reference || b.id).toLowerCase()));
+            const localOnly = memoryProductionBookings.filter(
+              (b) => !dbRefs.has((b.reference || b.id).toLowerCase())
+            );
+            prodBookingsList = [...localOnly, ...dbProdBookings];
           }
 
           // 2. Fetch leads
           const dbLeads = await fetchLeadsFromSupabase(db);
-          if (dbLeads) {
-            leadsList = dbLeads;
+          if (dbLeads && dbLeads.length > 0) {
+            const dbEmails = new Set(dbLeads.map((l) => l.email.toLowerCase()));
+            const localOnly = memoryLeads.filter(
+              (l) => !dbEmails.has(l.email.toLowerCase())
+            );
+            leadsList = [...localOnly, ...dbLeads];
           }
 
           // 3. Fetch landing bookings
           const dbLandingBookings = await fetchLandingBookingsFromSupabase(db);
-          if (dbLandingBookings) {
-            landingBookingsList = dbLandingBookings;
+          if (dbLandingBookings && dbLandingBookings.length > 0) {
+            const dbIds = new Set(dbLandingBookings.map((b) => b.id));
+            const localOnly = memoryLandingBookings.filter((b) => !dbIds.has(b.id));
+            landingBookingsList = [...localOnly, ...dbLandingBookings];
           }
 
           // 4. Fetch analytics events
@@ -1084,9 +1386,10 @@ async function startServer(app: express.Express = express()) {
     }
   });
 
-  // 7. API: Update Clover Heart Haven Booking Status (Table: productionbookings)
+  // 8. API: Update Clover Heart Haven Booking Status (Table: productionbookings)
   app.patch("/api/admin/bookings/:id/status", async (req, res) => {
     try {
+      if (!verifyAdminRequest(req, res)) return;
       const { id } = req.params;
       const { status } = req.body;
 
@@ -1111,9 +1414,10 @@ async function startServer(app: express.Express = express()) {
     }
   });
 
-  // 8. API: Update Landing Page Booking Status (Table: bookings)
+  // 9. API: Update Landing Page Booking Status (Table: bookings)
   app.patch("/api/admin/landing-bookings/:id/status", async (req, res) => {
     try {
+      if (!verifyAdminRequest(req, res)) return;
       const { id } = req.params;
       const { status } = req.body;
 
@@ -1139,13 +1443,28 @@ async function startServer(app: express.Express = express()) {
     res.json({ status: "ok", timestamp: new Date().toISOString(), supabaseConnected: !!getSupabase() });
   });
 
-  // Mount the separate lead-magnet static landing page at /lead-magnet on the same domain
+  // Mount the separate lead-magnet static landing page at /lead-magnet and /leadmagnets on the same domain
   const leadMagnetDir = path.join(process.cwd(), "lead-magnet");
-  app.use("/lead-magnet", express.static(leadMagnetDir));
-  app.get("/lead-magnet", (req, res) => {
+  app.use(["/lead-magnet", "/leadmagnets", "/leadmagnet", "/lead-magnets"], express.static(leadMagnetDir));
+
+  app.get(["/lead-magnet", "/leadmagnets", "/leadmagnet", "/lead-magnets"], (req, res) => {
     res.sendFile(path.join(leadMagnetDir, "index.html"));
   });
-  app.get("/lead-magnet/*", (req, res) => {
+
+  app.get(["/lead-magnet/index.html", "/leadmagnets/index.html"], (req, res) => {
+    res.sendFile(path.join(leadMagnetDir, "index.html"));
+  });
+
+  app.get(["/lead-magnet/index2.html", "/lead-magnet/index2", "/leadmagnets/index2.html", "/leadmagnets/index2"], (req, res) => {
+    res.sendFile(path.join(leadMagnetDir, "index2.html"));
+  });
+
+  app.get(["/lead-magnet/*", "/leadmagnets/*", "/leadmagnet/*", "/lead-magnets/*"], (req, res) => {
+    const subPath = req.params[0] || "";
+    const requestedFile = path.join(leadMagnetDir, subPath);
+    if (fs.existsSync(requestedFile) && fs.statSync(requestedFile).isFile()) {
+      return res.sendFile(requestedFile);
+    }
     res.sendFile(path.join(leadMagnetDir, "index.html"));
   });
 

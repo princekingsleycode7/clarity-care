@@ -290,7 +290,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
                 </li>
                 <li>
                   <button 
-                    onClick={() => handleOpenModal('Privacy Policy & HIPAA')}
+                    onClick={() => onNavigate ? onNavigate('Privacy') : handleOpenModal('Privacy Policy & HIPAA')}
                     className="hover:text-white transition-colors text-left cursor-pointer"
                   >
                     HIPAA Privacy Pledge
@@ -316,15 +316,24 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
             © {new Date().getFullYear()} Clover Heart Haven Inc. All rights reserved.
           </div>
           <div className="flex items-center gap-6">
-            <a href="#terms" className="hover:text-white transition-colors">
+            <button 
+              onClick={() => onNavigate ? onNavigate('Terms') : window.location.assign('/terms')} 
+              className="hover:text-white transition-colors cursor-pointer text-left"
+            >
               Terms of Service
-            </a>
-            <a href="#privacy" className="hover:text-white transition-colors">
+            </button>
+            <button 
+              onClick={() => onNavigate ? onNavigate('Privacy') : window.location.assign('/privacy')} 
+              className="hover:text-white transition-colors cursor-pointer text-left"
+            >
               Privacy Policy
-            </a>
-            <a href="#cookies" className="hover:text-white transition-colors">
+            </button>
+            <button 
+              onClick={() => onNavigate ? onNavigate('Cookies') : window.location.assign('/cookies')} 
+              className="hover:text-white transition-colors cursor-pointer text-left"
+            >
               Cookie Preferences
-            </a>
+            </button>
           </div>
         </div>
       </div>

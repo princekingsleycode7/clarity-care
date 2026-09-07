@@ -146,6 +146,13 @@ html.lenis,html.lenis body{height:auto}
 .form-status{font-family:var(--sans);font-size:13px;margin-top:4px}
 .form-status.success{color:var(--leaf)}
 .form-status.error{color:#e7a69a}
+.success-card{display:none;background:rgba(236,234,222,.06);border:1px solid rgba(163,199,150,.35);border-radius:18px;padding:28px 24px;margin-bottom:20px;backdrop-filter:blur(10px);animation:fadeInCard .4s ease}
+.success-card.on{display:block}
+.success-check{width:48px;height:48px;border-radius:50%;background:rgba(96,158,80,.2);color:var(--leaf);border:1px solid var(--leaf);display:grid;place-items:center;font-size:22px;margin-bottom:14px;font-weight:bold}
+.success-card h3{font-size:22px;font-weight:500;margin-bottom:8px;color:var(--ink)}
+.success-card .success-msg{font-family:var(--sans);font-size:14px;color:var(--ink-dim);line-height:1.6;margin-bottom:18px}
+.success-card .success-msg strong{color:var(--ink);font-weight:600}
+@keyframes fadeInCard{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 .return-home{display:none;margin-top:12px;font-family:var(--sans);font-size:13px;color:var(--ink);text-decoration:none;border:1px solid rgba(163,199,150,.3);border-radius:99px;padding:10px 16px}
 .return-home.on{display:inline-block}
 .return-home:hover{border-color:var(--leaf);color:var(--leaf)}
@@ -377,19 +384,25 @@ html.rm #chips{position:relative}
   <div class="talkbox">
     <h2>Start with one sentence.</h2>
     <p class="sub">No forms full of jargon. No waiting rooms. Just tell us where you are — we'll take it from there, gently.</p>
+
+    <!-- Response Success Confirmation Card -->
+    <div id="lead-success" class="success-card">
+      <div class="success-check">✓</div>
+      <h3>Your message has been received.</h3>
+      <p class="success-msg">Thank you, <strong id="lead-success-name">Friend</strong>. Your note has been securely transferred to our clinical intake team. Dr. Vance or an intake counselor will reply gently to <strong id="lead-success-email"></strong> within one business day.</p>
+      <a class="return-home on" id="return-home" href="../">Return to main landing page (<span id="return-count">15</span>s)</a>
+    </div>
+
     <form id="lead-form">
-     <label for="email">Email address</label>
-      <input id="email" name="email" type="email" autocomplete="email" required>
+      <label for="name">Your name</label>
+      <input id="name" name="name" type="text" placeholder="Your name (e.g. Maya)" autocomplete="name" required>
+      <label for="email">Email address</label>
+      <input id="email" name="email" type="email" placeholder="you@example.com" autocomplete="email" required>
       <label for="msg">What would you like support with?</label>
-      <textarea id="msg" name="message" data-lenis-prevent aria-label="Your message"></textarea>
+      <textarea id="msg" name="message" data-lenis-prevent aria-label="Your message" placeholder="Take your time... write a few words or as much as you wish."></textarea>
       <button class="cta" type="submit" id="lead-submit">Send my message</button>
       <p class="form-status" id="lead-status" role="status" aria-live="polite"></p>
-      <a class="return-home" id="return-home" href="../">Back to main landing page (<span id="return-count">15</span>s)</a>
     </form>
-    <div class="talkbtns">
-      <a class="cta" id="wa" href="#" target="_blank" rel="noopener">Send on WhatsApp</a>
-     
-    </div>
     <p class="fineprint">Your message is confidential. We reply within one working day. <a href="#" id="pricing">See pricing</a> · <a href="#">Privacy</a></p>
     <p class="crisis">If you are in immediate danger or thinking about harming yourself, please contact your local emergency number or a crisis line right now. This website is not emergency care.</p>
   </div>
@@ -515,9 +528,11 @@ function auVO(id){ if(!AU.ok)return; const e=AU.els[id];
 function auScene(s){ if(!AU.ok)return;
   if(AU.els.drone) AU.els.drone.baseVol = s.drone===1?.35 : s.drone===2?.6 : 0;
   if(AU.els.pad)   AU.els.pad.baseVol   = s.warmfrom!=null?.5:0; }
-function dismissGate(){ $('#gate').classList.add('gone'); if(lenis) lenis.start(); }
- $('#listen').addEventListener('click',()=>{auInit();dismissGate();});
- $('#mute').addEventListener('click',dismissGate);
+function dismissGate(){ const gate = $('#gate'); if(gate) gate.classList.add('gone'); if(lenis) lenis.start(); }
+const listenBtn = $('#listen');
+if (listenBtn) listenBtn.addEventListener('click', () => { auInit(); dismissGate(); });
+const muteBtn = $('#mute');
+if (muteBtn) muteBtn.addEventListener('click', dismissGate);
 
 /* ---- scrub-reversible typing ---- */
 const typeEl=$('#typebox');
@@ -613,57 +628,137 @@ const MSG="I don't know what's happening to me. I just know I'm tired.";
 const leadForm=$('#lead-form');
 const leadSubmit=$('#lead-submit');
 const leadStatus=$('#lead-status');
+const leadSuccess=$('#lead-success');
+const leadSuccessName=$('#lead-success-name');
+const leadSuccessEmail=$('#lead-success-email');
 const returnHome=$('#return-home');
 const returnCount=$('#return-count');
 let returnTimer;
+
 function startReturnCountdown(){
   let seconds=15;
-  returnHome.classList.add('on');
-  returnCount.textContent=seconds;
+  if(returnHome) returnHome.classList.add('on');
+  if(returnCount) returnCount.textContent=seconds;
   clearInterval(returnTimer);
   returnTimer=setInterval(()=>{
     seconds-=1;
-    returnCount.textContent=seconds;
+    if(returnCount) returnCount.textContent=seconds;
     if(seconds<=0){clearInterval(returnTimer);location.href='../';}
   },1000);
 }
+
 leadForm.addEventListener('submit',async e=>{
   e.preventDefault();
   const data=new FormData(leadForm);
-  const firstName=String(data.get('firstName')||'').trim();
+  const name=String(data.get('name')||'').trim();
   const email=String(data.get('email')||'').trim();
+  const message=String(data.get('message')||'').trim();
+
+  if(!email){
+    leadStatus.textContent='Please enter a valid email address.';
+    leadStatus.className='form-status error';
+    return;
+  }
+
   leadSubmit.disabled=true;
-  leadStatus.textContent='Sending...';
+  leadSubmit.textContent='Sending your message...';
+  leadStatus.textContent='Transmitting securely to our care intake...';
   leadStatus.className='form-status';
+
   try{
     const response=await fetch('/api/leads',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({firstName:'user',email,source:'story_scroll'})
+      body:JSON.stringify({
+        name: name || 'Friend',
+        fullName: name || 'Friend',
+        firstName: name ? name.split(' ')[0] : 'Friend',
+        email,
+        message,
+        notes: message || 'Inquiry from Story page',
+        source:'story_contact_section',
+        utm_source:'story_contact_section'
+      })
     });
-    if(!response.ok)throw new Error('Lead capture failed');
-    leadStatus.textContent='Thank you. We\'ll be in touch soon.';
-    leadStatus.className='form-status success';
-    leadForm.reset();
+
+    if(!response.ok){
+      const errData = await response.json().catch(()=>({}));
+      throw new Error(errData.error || 'Server submission error');
+    }
+
+    if(leadSuccessName) leadSuccessName.textContent = name || 'Friend';
+    if(leadSuccessEmail) leadSuccessEmail.textContent = email;
+
+    leadForm.style.display = 'none';
+    if(leadSuccess) leadSuccess.classList.add('on');
     startReturnCountdown();
+
   }catch(error){
-    leadStatus.textContent='We couldn\'t send that right now. Please try again.';
+    console.error('Submission error:', error);
+    leadStatus.textContent='Unable to send right now. Please check your connection or email us directly.';
     leadStatus.className='form-status error';
-  }finally{
     leadSubmit.disabled=false;
+    leadSubmit.textContent='Send my message';
   }
 });
 function goTalk(e){ if(e)e.preventDefault(); push({event:'cta_click'});
   if(CONFIG.contact.bookingUrl){open(CONFIG.contact.bookingUrl,'_blank');return;}
   scrollToTarget('#talk'); setTimeout(()=>$('#msg').focus({preventScroll:true}),900); }
- $('#help').addEventListener('click',e=>{e.preventDefault();push({event:'help_click'});scrollToTarget('#talk');});
- $('#cta').addEventListener('click',goTalk);
- $('#pill').addEventListener('click',()=>{scrollToTarget('#talk');$('#msg').value=MSG;
-  setTimeout(()=>$('#msg').focus({preventScroll:true}),900);push({event:'pill_use'});});
- $('#pill').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();$('#pill').click();}});
- $('#pricing').href=CONFIG.contact.pricingUrl;
-if(CONFIG.contact.whatsapp){$('#wa').href=`https://wa.me/${CONFIG.contact.whatsapp}?text=${encodeURIComponent(MSG)}`;}else $('#wa').style.display='none';
- $('#mail').href=`mailto:${CONFIG.contact.email}?subject=${encodeURIComponent('I don\u2019t know how to start')}&body=${encodeURIComponent(MSG)}`;
+  const helpBtn = $('#help');
+  if (helpBtn) {
+    helpBtn.addEventListener('click', e => {
+      e.preventDefault();
+      push({ event: 'help_click' });
+      scrollToTarget('#talk');
+    });
+  }
+
+  const ctaBtn = $('#cta');
+  if (ctaBtn) {
+    ctaBtn.addEventListener('click', goTalk);
+  }
+
+  const pillBtn = $('#pill');
+  if (pillBtn) {
+    pillBtn.addEventListener('click', () => {
+      scrollToTarget('#talk');
+      const msgInput = $('#msg');
+      if (msgInput) {
+        msgInput.value = MSG;
+        setTimeout(() => msgInput.focus({ preventScroll: true }), 900);
+      }
+      push({ event: 'pill_use' });
+    });
+    pillBtn.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        pillBtn.click();
+      }
+    });
+  }
+
+  const pricingLink = $('#pricing');
+  if (pricingLink && CONFIG.contact && CONFIG.contact.pricingUrl) {
+    pricingLink.href = CONFIG.contact.pricingUrl;
+  }
+
+  const waLink = $('#wa');
+  if (waLink) {
+    if (CONFIG.contact && CONFIG.contact.whatsapp) {
+      waLink.href = `https://wa.me/${CONFIG.contact.whatsapp}?text=${encodeURIComponent(MSG)}`;
+    } else {
+      waLink.style.display = 'none';
+    }
+  }
+
+  const mailLink = $('#mail');
+  if (mailLink) {
+    if (CONFIG.contact && CONFIG.contact.email) {
+      mailLink.href = `mailto:${CONFIG.contact.email}?subject=${encodeURIComponent('I don’t know how to start')}&body=${encodeURIComponent(MSG)}`;
+    } else {
+      mailLink.style.display = 'none';
+    }
+  }
 
 function push(d){ if(window.dataLayer)dataLayer.push(d); else console.log('[track]',d); }
 

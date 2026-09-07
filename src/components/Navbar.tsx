@@ -57,6 +57,10 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   // Helper label for active section in floating capsule
   const getDisplayActiveName = () => {
+    if (activeNav === 'Booking') return 'Book a Session';
+    if (activeNav === 'Terms') return 'Terms of Service';
+    if (activeNav === 'Privacy') return 'Privacy Policy';
+    if (activeNav === 'Cookies') return 'Cookie Preferences';
     if (activeNav !== 'Home') {
       const found = navItems.find(item => item.id === activeNav);
       return found ? found.label : activeNav;

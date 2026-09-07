@@ -22,7 +22,11 @@ import {
   Activity,
   Target,
   Sparkles,
-  Tag
+  Tag,
+  Eye,
+  EyeOff,
+  AlertCircle,
+  ArrowLeft
 } from 'lucide-react';
 
 interface ProductionBooking {
@@ -106,13 +110,12 @@ export const AdminDashboard: React.FC = () => {
   >('chh_bookings');
   
   const [copiedSql, setCopiedSql] = useState<boolean>(false);
-  const [passcodeInput, setPasscodeInput] = useState<string>(
-    () => sessionStorage.getItem('chh_admin_pass') || 'clover2026'
-  );
+  const [passcodeInput, setPasscodeInput] = useState<string>('');
   const [passcode, setPasscode] = useState<string>(
-    () => sessionStorage.getItem('chh_admin_pass') || 'clover2026'
+    () => sessionStorage.getItem('chh_admin_pass') || ''
   );
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
+  const [showPassword, setShowPassword] = useState<boolean>(false);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [authError, setAuthError] = useState<string>('');
 
   const sqlSchemaText = `-- Complete Supabase Schema for Clover Heart Haven & Landing Page
@@ -187,23 +190,32 @@ CREATE POLICY "Allow select analytics" ON public.analytics_events FOR SELECT TO 
 
   const fetchData = async (overridePass?: string) => {
     const activePass = overridePass !== undefined ? overridePass : passcode;
+    if (!activePass || !activePass.trim()) {
+      setIsLoading(false);
+      setIsAuthenticated(false);
+      return;
+    }
     setIsLoading(true);
     setAuthError('');
     try {
-      const res = await fetch(`/api/admin/data?passcode=${encodeURIComponent(activePass)}`, {
-        headers: { 'x-admin-passcode': activePass }
+      const res = await fetch(`/api/admin/data?passcode=${encodeURIComponent(activePass.trim())}`, {
+        headers: { 
+          'x-admin-passcode': activePass.trim(),
+          'x-admin-password': activePass.trim(),
+        }
       });
       if (res.status === 401) {
         setIsAuthenticated(false);
-        setAuthError('Incorrect admin passcode / PIN. Default is clover2026');
+        sessionStorage.removeItem('chh_admin_pass');
+        setAuthError('Incorrect administrator password. Access denied.');
         return;
       }
       if (res.ok) {
         const json = await res.json();
         setData(json);
         setIsAuthenticated(true);
-        setPasscode(activePass);
-        sessionStorage.setItem('chh_admin_pass', activePass);
+        setPasscode(activePass.trim());
+        sessionStorage.setItem('chh_admin_pass', activePass.trim());
       } else {
         setAuthError('Could not fetch admin data from server.');
       }
@@ -216,17 +228,31 @@ CREATE POLICY "Allow select analytics" ON public.analytics_events FOR SELECT TO 
   };
 
   useEffect(() => {
-    fetchData();
+    const saved = sessionStorage.getItem('chh_admin_pass');
+    if (saved && saved.trim()) {
+      fetchData(saved.trim());
+    } else {
+      setIsLoading(false);
+      setIsAuthenticated(false);
+    }
   }, []);
 
   const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    fetchData(passcodeInput.trim());
+    const cleanPass = passcodeInput.trim();
+    if (!cleanPass) {
+      setAuthError('Please enter your administrator password.');
+      return;
+    }
+    fetchData(cleanPass);
   };
 
   const handleLock = () => {
     sessionStorage.removeItem('chh_admin_pass');
+    setPasscode('');
+    setPasscodeInput('');
     setIsAuthenticated(false);
+    setData(null);
   };
 
   // Status update for Clover Heart Haven Intake Bookings
@@ -236,7 +262,8 @@ CREATE POLICY "Allow select analytics" ON public.analytics_events FOR SELECT TO 
         method: 'PATCH',
         headers: { 
           'Content-Type': 'application/json',
-          'x-admin-passcode': passcode 
+          'x-admin-passcode': passcode,
+          'x-admin-password': passcode,
         },
         body: JSON.stringify({ status: newStatus }),
       });
@@ -263,7 +290,8 @@ CREATE POLICY "Allow select analytics" ON public.analytics_events FOR SELECT TO 
         method: 'PATCH',
         headers: { 
           'Content-Type': 'application/json',
-          'x-admin-passcode': passcode 
+          'x-admin-passcode': passcode,
+          'x-admin-password': passcode,
         },
         body: JSON.stringify({ status: newStatus }),
       });
@@ -400,6 +428,98 @@ CREATE POLICY "Allow select analytics" ON public.analytics_events FOR SELECT TO 
     return matchesSearch && matchesStatus;
   });
 
+  // Full Password Gate Screen if Not Authenticated
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-[#edf2e8] flex flex-col justify-center items-center px-4 py-12 font-['Plus_Jakarta_Sans'] selection:bg-[#1c2c19] selection:text-white">
+        {/* Navigation back */}
+        <div className="w-full max-w-md mb-5 flex justify-between items-center text-xs">
+          <a
+            href="/"
+            className="inline-flex items-center gap-1.5 font-medium text-[#1c2c19] hover:text-[#2c4724] transition-colors"
+          >
+            <ArrowLeft size={14} />
+            <span>Return to Public Sanctuary</span>
+          </a>
+          <span className="bg-[#1c2c19]/10 text-[#1c2c19] px-2.5 py-0.5 rounded-full font-semibold uppercase text-[10px] tracking-wider">
+            Protected Area
+          </span>
+        </div>
+
+        {/* Lock Card */}
+        <div className="w-full max-w-md bg-white rounded-3xl p-8 sm:p-10 border border-[#d2dbc8] shadow-2xl space-y-6">
+          <div className="text-center space-y-3">
+            <div className="w-14 h-14 rounded-2xl bg-[#1c2c19] text-[#a4bc87] flex items-center justify-center mx-auto shadow-md">
+              <Lock size={26} />
+            </div>
+            <h1 className="text-2xl font-bold text-[#1c2c19] tracking-tight">
+              Administrator Portal
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+              This area is password-protected. Please enter your administrator password to unlock clinical telemetry and lead records.
+            </p>
+          </div>
+
+          <form onSubmit={handleLoginSubmit} className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">
+                Administrator Password
+              </label>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={passcodeInput}
+                  onChange={(e) => setPasscodeInput(e.target.value)}
+                  placeholder="Enter administrator password"
+                  className="w-full pl-4 pr-11 py-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#1c2c19] text-sm text-slate-800 transition-all font-mono tracking-wider"
+                  autoFocus
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1 cursor-pointer transition-colors"
+                  title={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+
+              {authError && (
+                <div className="mt-2.5 p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-center gap-2">
+                  <AlertCircle size={15} className="shrink-0 text-red-600" />
+                  <span>{authError}</span>
+                </div>
+              )}
+            </div>
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full py-3.5 px-4 rounded-xl bg-[#1c2c19] hover:bg-[#2c4724] active:scale-[0.99] text-white font-bold text-sm transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-wait"
+            >
+              {isLoading ? (
+                <>
+                  <RefreshCw size={16} className="animate-spin" />
+                  <span>Verifying Credentials...</span>
+                </>
+              ) : (
+                <>
+                  <ShieldCheck size={17} />
+                  <span>Unlock Admin Dashboard</span>
+                </>
+              )}
+            </button>
+          </form>
+        </div>
+
+        <p className="mt-8 text-xs text-slate-400 text-center">
+          Clover Heart Haven &copy; {new Date().getFullYear()} &middot; Internal Clinical Operations
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#f7faf5] text-[#1c2c19] font-['Plus_Jakarta_Sans'] pb-20 selection:bg-[#c2d7b5]">
       
@@ -461,66 +581,8 @@ CREATE POLICY "Allow select analytics" ON public.analytics_events FOR SELECT TO 
         </div>
       </header>
 
-      {/* PIN Authentication Screen if Locked */}
-      {!isAuthenticated ? (
-        <div className="max-w-md mx-auto px-4 pt-20">
-          <div className="bg-white rounded-3xl p-8 border border-[#d2dbc8] shadow-xl text-center space-y-6">
-            <div className="w-16 h-16 rounded-full bg-[#1c2c19] text-[#a4bc87] flex items-center justify-center mx-auto shadow-md">
-              <Lock size={28} />
-            </div>
-            
-            <div className="space-y-1.5">
-              <h2 className="text-2xl font-bold text-[#1c2c19]">Admin Passcode Required</h2>
-              <p className="text-xs text-slate-600">
-                Enter your secure administrator PIN or passcode to access the live analytics and bookings hub.
-              </p>
-            </div>
-
-            <form onSubmit={handleLoginSubmit} className="space-y-4 text-left">
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">
-                  Security PIN / Passcode
-                </label>
-                <input
-                  type="password"
-                  value={passcodeInput}
-                  onChange={(e) => setPasscodeInput(e.target.value)}
-                  placeholder="Enter PIN (e.g. clover2026)"
-                  className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#2b4c24] text-sm font-mono tracking-widest text-slate-800"
-                  autoFocus
-                />
-                {authError && (
-                  <p className="text-xs text-rose-600 mt-1.5 font-medium">{authError}</p>
-                )}
-              </div>
-
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full py-3 px-4 rounded-xl bg-[#1c2c19] hover:bg-[#2c4724] text-white font-bold text-sm transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
-              >
-                {isLoading ? (
-                  <>
-                    <RefreshCw size={16} className="animate-spin" />
-                    <span>Verifying...</span>
-                  </>
-                ) : (
-                  <>
-                    <ShieldCheck size={16} />
-                    <span>Unlock Admin Hub</span>
-                  </>
-                )}
-              </button>
-            </form>
-
-            <div className="pt-2 border-t border-slate-100 text-[11px] text-slate-400">
-              Default system PIN is <code className="font-mono bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded">clover2026</code> (configurable via <code className="font-mono text-slate-600">ADMIN_PASSCODE</code>)
-            </div>
-          </div>
-        </div>
-      ) : (
-        /* Main Container */
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 space-y-8">
+      {/* Main Container */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 space-y-8">
         
         {/* KPI Overview Grid */}
         <section className="grid grid-cols-2 lg:grid-cols-5 gap-4">
@@ -1267,7 +1329,6 @@ CREATE POLICY "Allow select analytics" ON public.analytics_events FOR SELECT TO 
         )}
 
       </main>
-      )}
     </div>
   );
 };

@@ -23,6 +23,8 @@ interface ContactPageProps {
 
 export const ContactPage: React.FC<ContactPageProps> = ({ onScheduleSuccess, onOpenOnboarding }) => {
   const [submitted, setSubmitted] = useState<boolean>(false);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [submitError, setSubmitError] = useState<string>('');
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [consultationType, setConsultationType] = useState<'telehealth' | 'inperson'>('telehealth');
   const [selectedDate, setSelectedDate] = useState<string>('Tomorrow');
@@ -36,9 +38,46 @@ export const ContactPage: React.FC<ContactPageProps> = ({ onScheduleSuccess, onO
     message: '',
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitted(true);
+    if (!formData.email.trim()) return;
+
+    setIsSubmitting(true);
+    setSubmitError('');
+
+    try {
+      // 1. Submit lead to /api/leads so it persists in Supabase & memory for Admin Dashboard
+      const leadRes = await fetch('/api/leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fullName: formData.fullName.trim(),
+          firstName: formData.fullName.trim().split(' ')[0] || formData.fullName.trim(),
+          name: formData.fullName.trim(),
+          email: formData.email.trim(),
+          phone: formData.phone.trim(),
+          serviceInterest: formData.serviceInterest,
+          urgency: formData.urgency,
+          message: formData.message.trim(),
+          source: 'contact_page',
+          utm_source: 'contact_page',
+          notes: `Interest: ${formData.serviceInterest} | Format: ${consultationType === 'telehealth' ? 'Telehealth Video' : 'In-Person (San Francisco)'} | Slot: ${selectedDate} at ${selectedSlot} | Urgency: ${formData.urgency}${formData.message ? ` | Notes: ${formData.message}` : ''}`,
+        }),
+      });
+
+      if (!leadRes.ok) {
+        const errData = await leadRes.json().catch(() => ({}));
+        throw new Error(errData.error || 'Failed to submit consultation request');
+      }
+
+      setSubmitted(true);
+      if (onScheduleSuccess) onScheduleSuccess();
+    } catch (err: any) {
+      console.error('Contact form submission error:', err);
+      setSubmitError(err.message || 'Unable to submit your inquiry right now. Please try again or call our direct office line.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const contactFaqs = [
@@ -370,12 +409,29 @@ export const ContactPage: React.FC<ContactPageProps> = ({ onScheduleSuccess, onO
                   />
                 </div>
 
+                {submitError && (
+                  <div className="p-3.5 bg-red-50 border border-red-200 rounded-2xl text-xs text-red-700 flex items-center gap-2.5">
+                    <AlertCircle size={16} className="shrink-0 text-red-600" />
+                    <span>{submitError}</span>
+                  </div>
+                )}
+
                 <button
                   type="submit"
-                  className="w-full bg-[#1c2c19] text-white hover:bg-[#2b4427] py-3.5 rounded-full text-xs sm:text-sm font-bold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer hover:scale-101"
+                  disabled={isSubmitting}
+                  className="w-full bg-[#1c2c19] text-white hover:bg-[#2b4427] py-3.5 rounded-full text-xs sm:text-sm font-bold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-wait hover:scale-[1.01]"
                 >
-                  <Send size={16} />
-                  <span>Submit Consultation Request</span>
+                  {isSubmitting ? (
+                    <>
+                      <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                      <span>Submitting Request to Clinical Team...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Send size={16} />
+                      <span>Submit Consultation Request</span>
+                    </>
+                  )}
                 </button>
               </form>
             )}
