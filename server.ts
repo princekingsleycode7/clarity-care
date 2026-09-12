@@ -85,7 +85,7 @@ async function generatePersonalizedFollowup(leadId: string | null, firstName: st
     let generatedCopy = "";
     const prompt = `Write a gentle, highly empathetic Day-2 follow-up email for ${firstName}, who just downloaded the guide "Why You Still Miss Them". 
 They came from ad/marketing channel: "${utmSource}". 
-Keep it concise, compassionate, non-salesy, and focused on emotional self-compassion. Include the direct booking link: "/book-session?name=${encodeURIComponent(firstName)}&source=email_nurture_day2" for a private 30-minute consultation with Dr. Vance.`;
+Keep it concise, compassionate, non-salesy, and focused on emotional self-compassion. Include the direct booking link: "/book-session?name=${encodeURIComponent(firstName)}&source=email_nurture_day2" for a private 1-hour session.`;
 
     if (process.env.GEMINI_API_KEY) {
       const { GoogleGenAI } = await import("@google/genai");
@@ -1095,7 +1095,7 @@ async function startServer(app: express.Express = express()) {
           subject: "Confirmed: Your Clover Heart Haven Call",
           html: `
             <p>Hi ${finalName},</p>
-            <p>Your 30-minute private consultation call has been scheduled for <strong>${finalDate} at ${finalTime}</strong>.</p>
+            <p>Your 1-hour private session has been scheduled for <strong>${finalDate} at ${finalTime}</strong>.</p>
             <p>We'll hold this time for you. A therapist will be ready to listen and answer any questions with gentle care.</p>
             <p>Warmly,<br>The Clover Heart Haven Team</p>
           `,

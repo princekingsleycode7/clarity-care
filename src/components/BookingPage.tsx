@@ -3,7 +3,6 @@ import {
   Calendar, 
   Clock, 
   Video, 
-  MapPin, 
   ShieldCheck, 
   CheckCircle2, 
   ArrowLeft, 
@@ -12,20 +11,15 @@ import {
   Mail, 
   Phone, 
   Sparkles, 
-  Heart, 
   CalendarCheck2, 
   Download, 
   ExternalLink, 
-  Check, 
   Info,
-  Lock,
-  ChevronRight,
   FileText,
-  Star,
   RefreshCw,
-  AlertCircle
+  AlertCircle,
+  Timer
 } from 'lucide-react';
-import doctorPortrait from '../assets/images/licensed_therapist_session_1786464568739.jpg';
 
 interface BookingPageProps {
   onNavigate?: (page: string) => void;
@@ -37,18 +31,16 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate }) => {
   const [sourceParam, setSourceParam] = useState('email_sequence');
   const [utmCampaign, setUtmCampaign] = useState('');
 
-  // Form state
+  // Form state - streamlined to only date, time, and confidential details
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
     phone: '',
-    format: 'telehealth' as 'telehealth' | 'inperson',
     selectedDate: '',
     selectedDateISO: '',
     selectedDateLabel: '',
     selectedTime: '10:00 AM',
     timezone: 'America/Los_Angeles',
-    topic: 'Navigating Heartbreak & Breakup Grief',
     notes: '',
   });
 
@@ -74,17 +66,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate }) => {
   const afternoonSlots = ['01:00 PM', '02:00 PM', '03:00 PM', '04:00 PM'];
   const eveningSlots = ['05:00 PM', '06:00 PM'];
 
-  // Topics tailored for email sequences and lead magnet readers
-  const topics = [
-    'Navigating Heartbreak & Breakup Grief',
-    'Understanding Why I Still Miss Them',
-    'Coping with Overthinking & Anxiety',
-    'Anxious / Avoidant Attachment Patterns',
-    'Life Transitions & General Emotional Clarity',
-    'Couples & Relationship Guidance'
-  ];
-
-  // Parse URL search parameters on mount
+  // Parse URL search parameters on mount (email nurturing prefill)
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
@@ -93,7 +75,6 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate }) => {
       const urlEmail = searchParams.get('email') || searchParams.get('e') || searchParams.get('mail') || '';
       const urlName = searchParams.get('name') || searchParams.get('n') || searchParams.get('first_name') || searchParams.get('firstName') || '';
       const urlPhone = searchParams.get('phone') || searchParams.get('tel') || '';
-      const urlTopic = searchParams.get('topic') || searchParams.get('interest') || '';
       const urlSource = searchParams.get('source') || searchParams.get('utm_source') || 'email_sequence';
       const urlCampaign = searchParams.get('utm_campaign') || searchParams.get('campaign') || '';
 
@@ -105,7 +86,6 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate }) => {
         fullName: urlName ? decodeURIComponent(urlName) : prev.fullName,
         email: urlEmail ? decodeURIComponent(urlEmail) : prev.email,
         phone: urlPhone ? decodeURIComponent(urlPhone) : prev.phone,
-        topic: urlTopic ? decodeURIComponent(urlTopic) : prev.topic,
       }));
 
       // Detect user local timezone
@@ -176,6 +156,29 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate }) => {
     }));
   };
 
+  // Helper to compute 1-hour session time range
+  const getSessionTimeRange = () => {
+    try {
+      const dateStr = formData.selectedDateISO || new Date().toISOString().split('T')[0];
+      const match = formData.selectedTime.match(/^(\d+):(\d+)\s*(AM|PM)$/i);
+      let hours = 10;
+      let minutes = 0;
+      if (match) {
+        hours = parseInt(match[1], 10);
+        minutes = parseInt(match[2], 10);
+        const ampm = match[3].toUpperCase();
+        if (ampm === 'PM' && hours < 12) hours += 12;
+        if (ampm === 'AM' && hours === 12) hours = 0;
+      }
+      const start = new Date(`${dateStr}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`);
+      const end = new Date(start.getTime() + 60 * 60 * 1000); // 1-hour session
+      return { start, end };
+    } catch {
+      const now = new Date();
+      return { start: now, end: new Date(now.getTime() + 3600000) };
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
@@ -198,9 +201,9 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate }) => {
     setIsSubmitting(true);
 
     try {
-      // 1. Submit to /api/cal/book which writes to productionbookings
-      const address = formData.format === 'telehealth' ? 'Telehealth Video Sanctuary' : '450 Sutter St, Suite 1200, San Francisco, CA 94108';
-      const notes = `Topic: ${formData.topic} | Format: ${formData.format === 'telehealth' ? 'Telehealth Video' : 'In-Person'} | Source: ${sourceParam}${utmCampaign ? ` | Campaign: ${utmCampaign}` : ''}${formData.notes ? ` | Client Note: ${formData.notes}` : ''}`;
+      // 1. Submit to /api/cal/book which writes to production bookings
+      const address = 'Telehealth Video Sanctuary';
+      const notes = `Type: 1-Hour Private Consultation Session | Source: ${sourceParam}${utmCampaign ? ` | Campaign: ${utmCampaign}` : ''}${formData.notes ? ` | Client Note: ${formData.notes}` : ''}`;
 
       const calRes = await fetch('/api/cal/book', {
         method: 'POST',
@@ -214,6 +217,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate }) => {
           selectedTime: formData.selectedTime,
           timezone: formData.timezone,
           notes,
+          duration: 60,
         }),
       });
 
@@ -224,7 +228,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate }) => {
         if (calData.reference) refId = calData.reference;
       }
 
-      // 2. Also register lead attribution via /api/leads
+      // 2. Register lead attribution via /api/leads
       await fetch('/api/leads', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -233,10 +237,10 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate }) => {
           firstName: formData.fullName.trim().split(' ')[0],
           email: formData.email.trim(),
           phone: formData.phone.trim(),
-          serviceInterest: formData.topic,
+          serviceInterest: '1-Hour Private Consultation Session',
           source: sourceParam,
           utm_source: sourceParam,
-          notes: `Booked Consultation: ${formData.selectedDate} at ${formData.selectedTime} (${formData.timezone}) | Ref: ${refId}`,
+          notes: `Booked 1-Hour Session: ${formData.selectedDate} at ${formData.selectedTime} (${formData.timezone}) | Ref: ${refId}`,
         }),
       }).catch(err => console.warn('Attribution lead log notice:', err));
 
@@ -244,7 +248,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate }) => {
       setCurrentStep(2);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err: any) {
-      console.warn('Booking network error, providing guaranteed local confirmation:', err);
+      console.warn('Booking network notice, providing guaranteed confirmation:', err);
       const fallbackRef = `CHH-CAL-${Math.floor(100000 + Math.random() * 900000)}`;
       setBookingReference(fallbackRef);
       setCurrentStep(2);
@@ -254,35 +258,43 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate }) => {
     }
   };
 
-  // Google Calendar URL generator
+  // Google Calendar URL generator (1-hour block)
   const getGoogleCalendarUrl = () => {
-    const title = encodeURIComponent(`Private Consultation — Clover Heart Haven`);
+    const { start, end } = getSessionTimeRange();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const formatGCalDate = (d: Date) => 
+      `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
+
+    const datesParam = `${formatGCalDate(start)}/${formatGCalDate(end)}`;
+    const title = encodeURIComponent(`1-Hour Private Consultation — Clover Heart Haven`);
     const details = encodeURIComponent(
-      `Private consultation with Dr. Elena Vance & Clover Heart Haven Clinical Team.\n` +
+      `1-Hour Private Consultation with Clover Heart Haven.\n` +
       `Booking Reference: ${bookingReference}\n` +
       `Attendee: ${formData.fullName}\n` +
-      `Topic: ${formData.topic}\n` +
-      `Format: ${formData.format === 'telehealth' ? 'Telehealth Video (Link sent to ' + formData.email + ')' : 'In-Person (San Francisco Sanctuary)'}\n\n` +
+      `Format: Private Video Sanctuary (Encrypted link sent to ${formData.email})\n\n` +
       `Need to reschedule? Email care@cloverhearthaven.com with at least 24 hours notice.`
     );
-    const location = encodeURIComponent(
-      formData.format === 'telehealth' 
-        ? 'Telehealth Video (Check email for encrypted room link)' 
-        : 'Clover Heart Haven, 450 Sutter St, San Francisco, CA'
-    );
-    return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&details=${details}&location=${location}`;
+    const location = encodeURIComponent('Private Video Sanctuary (Check email for encrypted link)');
+    return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${datesParam}&details=${details}&location=${location}`;
   };
 
-  // ICS Download for Apple Calendar & Outlook
+  // ICS Download for Apple Calendar & Outlook (60-minute duration)
   const handleDownloadIcs = () => {
+    const { start, end } = getSessionTimeRange();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const formatIcsDate = (d: Date) => 
+      `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
+
     const icsContent = [
       'BEGIN:VCALENDAR',
       'VERSION:2.0',
-      'PRODID:-//Clover Heart Haven//Therapy Consultation//EN',
+      'PRODID:-//Clover Heart Haven//1-Hour Session//EN',
       'BEGIN:VEVENT',
-      `SUMMARY:Private Consultation — Clover Heart Haven`,
-      `DESCRIPTION:Private consultation with Dr. Elena Vance.\\nBooking Ref: ${bookingReference}\\nAttendee: ${formData.fullName}\\nTopic: ${formData.topic}`,
-      `LOCATION:${formData.format === 'telehealth' ? 'Telehealth Video Room' : '450 Sutter St, San Francisco, CA'}`,
+      `SUMMARY:1-Hour Private Consultation — Clover Heart Haven`,
+      `DESCRIPTION:1-Hour private session with Clover Heart Haven.\\nBooking Ref: ${bookingReference}\\nAttendee: ${formData.fullName}`,
+      `LOCATION:Private Video Sanctuary`,
+      `DTSTART:${formatIcsDate(start)}`,
+      `DTEND:${formatIcsDate(end)}`,
       'STATUS:CONFIRMED',
       'END:VEVENT',
       'END:VCALENDAR'
@@ -291,7 +303,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate }) => {
     const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
     const link = document.createElement('a');
     link.href = window.URL.createObjectURL(blob);
-    link.setAttribute('download', `clover_consultation_${bookingReference}.ics`);
+    link.setAttribute('download', `clover_1hour_session_${bookingReference}.ics`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -299,7 +311,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate }) => {
 
   return (
     <div className="w-full bg-[#f4f7f1] text-[#1c2c19] pt-24 pb-20 px-4 sm:px-6 md:px-12 lg:px-20 transition-all duration-300">
-      <div className="max-w-4xl mx-auto space-y-8">
+      <div className="max-w-3xl mx-auto space-y-8">
         
         {/* Navigation Breadcrumb */}
         <div className="flex items-center justify-between gap-4">
@@ -317,58 +329,26 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate }) => {
           </div>
         </div>
 
-        {/* STEP 1: Interactive Booking Flow */}
+        {/* STEP 1: Streamlined Booking Flow */}
         {currentStep === 1 && (
           <div className="space-y-8 animate-in fade-in duration-300">
             
             {/* Header / Intro Banner */}
-            <header className="space-y-4 pb-6 border-b border-[#2d4728]/15">
+            <header className="space-y-3 pb-6 border-b border-[#2d4728]/15">
               <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#1c2c19]/5 border border-[#1c2c19]/10 text-xs font-semibold text-[#2d4728]">
-                <CalendarCheck2 size={14} className="text-[#3b5936]" />
-                Direct 1-on-1 Consultation Scheduling
+                <Timer size={14} className="text-[#3b5936]" />
+                1-Hour Private Session Scheduling
               </div>
 
               <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-[#1c2c19] font-['Plus_Jakarta_Sans']">
-                Schedule Your Private Session
+                Schedule Your One-Hour Session
               </h1>
 
               <p className="text-base sm:text-lg text-[#4a5f47] max-w-2xl leading-relaxed">
                 {formData.fullName 
-                  ? `Welcome, ${formData.fullName.split(' ')[0]}. Select a time that feels gentle and unhurried for your conversation.`
-                  : 'A confidential, unhurried 30-minute consultation with Dr. Elena Vance or our senior clinical team. No preparation needed.'}
+                  ? `Welcome, ${formData.fullName.split(' ')[0]}. Select a time that feels gentle and unhurried for your one-hour session.`
+                  : 'A dedicated, unhurried 60-minute private consultation. Choose your preferred time below.'}
               </p>
-
-              {/* Therapist Highlight Capsule */}
-              <div className="p-4 rounded-2xl bg-white border border-[#2d4728]/15 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div className="flex items-center gap-3.5">
-                  <img
-                    src={doctorPortrait}
-                    alt="Dr. Elena Vance"
-                    className="w-13 h-13 rounded-full object-cover border-2 border-[#a4bc87] shrink-0"
-                  />
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <strong className="font-bold text-[#1c2c19] text-sm sm:text-base">Dr. Elena Vance, PsyD</strong>
-                      <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-                        Lead Clinical Psychologist
-                      </span>
-                    </div>
-                    <p className="text-xs text-[#587352] mt-0.5">
-                      Columbia PsyD • Harvard Medical Fellowship • LMFT #84920 • 14+ Yrs Experience
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-[#324f30] shrink-0 sm:border-l sm:border-[#2d4728]/15 sm:pl-4">
-                  <div className="flex items-center text-amber-500">
-                    {[...Array(5)].map((_, i) => (
-                      <Star key={i} size={12} className="fill-amber-500 text-amber-500" />
-                    ))}
-                  </div>
-                  <span className="text-[#1c2c19] font-bold">5.0</span>
-                  <span className="text-[#688262]">(480+ reviews)</span>
-                </div>
-              </div>
             </header>
 
             {/* Main Booking Form */}
@@ -381,68 +361,11 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate }) => {
                 </div>
               )}
 
-              {/* 1. Format Selection */}
-              <div className="space-y-3">
-                <label className="block text-xs font-bold uppercase tracking-wider text-[#2e472a]">
-                  1. Select Consultation Format
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setFormData(prev => ({ ...prev, format: 'telehealth' }))}
-                    className={`p-4 rounded-xl border text-left transition-all cursor-pointer flex items-start gap-3.5 ${
-                      formData.format === 'telehealth'
-                        ? 'bg-white border-[#1c2c19] ring-2 ring-[#1c2c19]/10 shadow-sm'
-                        : 'bg-white/60 border-[#2d4728]/20 hover:bg-white text-[#465a43]'
-                    }`}
-                  >
-                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
-                      formData.format === 'telehealth' ? 'bg-[#1c2c19] text-white' : 'bg-[#eef4ec] text-[#2c4728]'
-                    }`}>
-                      <Video size={18} />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <strong className="text-sm font-bold text-[#1c2c19]">Telehealth Video</strong>
-                        <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">
-                          Recommended
-                        </span>
-                      </div>
-                      <p className="text-xs text-[#587352] mt-0.5 leading-relaxed">
-                        Join from the comfort of home via secure, HIPAA-compliant video link.
-                      </p>
-                    </div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setFormData(prev => ({ ...prev, format: 'inperson' }))}
-                    className={`p-4 rounded-xl border text-left transition-all cursor-pointer flex items-start gap-3.5 ${
-                      formData.format === 'inperson'
-                        ? 'bg-white border-[#1c2c19] ring-2 ring-[#1c2c19]/10 shadow-sm'
-                        : 'bg-white/60 border-[#2d4728]/20 hover:bg-white text-[#465a43]'
-                    }`}
-                  >
-                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
-                      formData.format === 'inperson' ? 'bg-[#1c2c19] text-white' : 'bg-[#eef4ec] text-[#2c4728]'
-                    }`}>
-                      <MapPin size={18} />
-                    </div>
-                    <div>
-                      <strong className="text-sm font-bold text-[#1c2c19]">In-Person Sanctuary</strong>
-                      <p className="text-xs text-[#587352] mt-0.5 leading-relaxed">
-                        450 Sutter St, Suite 1200, San Francisco, CA. Quiet, private clinic room.
-                      </p>
-                    </div>
-                  </button>
-                </div>
-              </div>
-
-              {/* 2. Choose Date */}
+              {/* 1. Choose Date */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <label className="block text-xs font-bold uppercase tracking-wider text-[#2e472a]">
-                    2. Select Your Date
+                    1. Select Your Date
                   </label>
                   <span className="text-xs text-[#587352]">
                     Selected: <strong className="text-[#1c2c19]">{formData.selectedDateLabel || 'None'}</strong>
@@ -478,16 +401,16 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate }) => {
                     })}
                   </div>
                   <p className="text-[11px] text-[#71886c] mt-2 flex items-center gap-1">
-                    <Info size={12} /> Scroll horizontally for next 2 weeks of available therapist consultation dates.
+                    <Info size={12} /> Scroll horizontally for upcoming available 1-hour session dates.
                   </p>
                 </div>
               </div>
 
-              {/* 3. Choose Time Slot */}
+              {/* 2. Choose Time Slot */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <label className="block text-xs font-bold uppercase tracking-wider text-[#2e472a]">
-                    3. Select Time Slot
+                    2. Select Time Slot (60 Minutes)
                   </label>
                   <div className="text-xs text-[#587352] flex items-center gap-1">
                     <Clock size={12} />
@@ -564,34 +487,10 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate }) => {
                 </div>
               </div>
 
-              {/* 4. Focus Topic */}
-              <div className="space-y-3">
-                <label className="block text-xs font-bold uppercase tracking-wider text-[#2e472a]">
-                  4. What&apos;s on Your Heart? (Focus Topic)
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {topics.map(t => (
-                    <button
-                      key={t}
-                      type="button"
-                      onClick={() => setFormData(prev => ({ ...prev, topic: t }))}
-                      className={`p-3 rounded-xl border text-xs sm:text-sm font-medium transition-all text-left flex items-center justify-between cursor-pointer ${
-                        formData.topic === t
-                          ? 'bg-[#1c2c19] text-white border-[#1c2c19] shadow-xs font-semibold'
-                          : 'bg-white hover:bg-[#eef4ec] border-[#2d4728]/15 text-[#2c4529]'
-                      }`}
-                    >
-                      <span className="truncate pr-2">{t}</span>
-                      {formData.topic === t && <Check size={14} className="text-[#a4bc87] shrink-0" />}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* 5. Contact Information */}
+              {/* 3. Confidential Details */}
               <div className="space-y-4">
                 <label className="block text-xs font-bold uppercase tracking-wider text-[#2e472a]">
-                  5. Your Confidential Contact Details
+                  3. Your Confidential Details
                 </label>
 
                 <div className="p-5 sm:p-6 rounded-2xl bg-white border border-[#2d4728]/15 shadow-xs space-y-4">
@@ -623,7 +522,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate }) => {
                         className="w-full px-3.5 py-2.5 rounded-xl border border-[#2d4728]/20 bg-[#fafcf8] text-sm text-[#1c2c19] focus:outline-none focus:ring-2 focus:ring-[#1c2c19]"
                       />
                       <span className="text-[11px] text-[#698464] mt-1 block">
-                        Your private video link and calendar invite will be sent here.
+                        Your private video link and 1-hour calendar invite will be sent here.
                       </span>
                     </div>
                   </div>
@@ -641,17 +540,17 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate }) => {
                         className="w-full px-3.5 py-2.5 rounded-xl border border-[#2d4728]/20 bg-[#fafcf8] text-sm text-[#1c2c19] focus:outline-none focus:ring-2 focus:ring-[#1c2c19]"
                       />
                       <span className="text-[11px] text-[#698464] mt-1 block">
-                        Used only to send a 24-hour reminder text. Never shared.
+                        Used only for session reminders. Never shared.
                       </span>
                     </div>
 
                     <div>
                       <label className="block text-xs font-bold text-[#1c2c19] mb-1.5 flex items-center gap-1.5">
-                        <FileText size={14} className="text-[#3b5936]" /> Brief Note for Doctor (Optional)
+                        <FileText size={14} className="text-[#3b5936]" /> Brief Note / Context (Optional)
                       </label>
                       <input
                         type="text"
-                        placeholder="Anything you'd like to share in advance..."
+                        placeholder="Anything you'd like to mention in advance..."
                         value={formData.notes}
                         onChange={e => setFormData(prev => ({ ...prev, notes: e.target.value }))}
                         className="w-full px-3.5 py-2.5 rounded-xl border border-[#2d4728]/20 bg-[#fafcf8] text-sm text-[#1c2c19] focus:outline-none focus:ring-2 focus:ring-[#1c2c19]"
@@ -678,12 +577,12 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate }) => {
                 {isSubmitting ? (
                   <>
                     <RefreshCw size={18} className="animate-spin" />
-                    <span>Reserving Your Consultation Slot...</span>
+                    <span>Reserving Your 1-Hour Session...</span>
                   </>
                 ) : (
                   <>
                     <CalendarCheck2 size={20} />
-                    <span>Confirm & Reserve My 30-Minute Session</span>
+                    <span>Confirm & Reserve My 1-Hour Session</span>
                     <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
                   </>
                 )}
@@ -708,7 +607,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate }) => {
                   </div>
                   <div>
                     <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700 block">
-                      Session Confirmed
+                      One-Hour Session Confirmed
                     </span>
                     <h2 className="text-2xl sm:text-3xl font-bold text-[#1c2c19] font-['Plus_Jakarta_Sans']">
                       You&apos;re All Set, {formData.fullName.split(' ')[0]}!
@@ -737,13 +636,14 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate }) => {
                 </div>
 
                 <div className="space-y-2 sm:border-l sm:border-[#2d4728]/15 sm:pl-4">
-                  <div className="text-xs text-[#5f7a5b] font-bold uppercase tracking-wider">Session Format</div>
+                  <div className="text-xs text-[#5f7a5b] font-bold uppercase tracking-wider">Duration & Format</div>
                   <div className="flex items-center gap-2 text-[#1c2c19] font-semibold text-base">
-                    {formData.format === 'telehealth' ? <Video size={18} className="text-[#3b5936]" /> : <MapPin size={18} className="text-[#3b5936]" />}
-                    <span>{formData.format === 'telehealth' ? 'Private Telehealth Video' : 'In-Person (San Francisco)'}</span>
+                    <Timer size={18} className="text-[#3b5936]" />
+                    <span>1 Hour (60 Minutes)</span>
                   </div>
-                  <div className="text-xs text-[#587352]">
-                    Focus: <strong className="text-[#1c2c19]">{formData.topic}</strong>
+                  <div className="flex items-center gap-1.5 text-xs text-[#587352]">
+                    <Video size={14} className="text-[#3b5936]" />
+                    <span>Encrypted Video Sanctuary link sent to {formData.email}</span>
                   </div>
                 </div>
               </div>
@@ -751,7 +651,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate }) => {
               {/* One-Click Calendar Integration */}
               <div className="space-y-3">
                 <span className="text-xs font-bold uppercase tracking-wider text-[#2e472a] block">
-                  Add to Your Calendar:
+                  Add 1-Hour Block to Your Calendar:
                 </span>
                 <div className="flex flex-wrap items-center gap-3">
                   <a
@@ -761,7 +661,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate }) => {
                     className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#1c2c19] text-white text-xs sm:text-sm font-bold hover:bg-[#283e24] transition-all cursor-pointer shadow-xs"
                   >
                     <CalendarCheck2 size={16} className="text-[#a4bc87]" />
-                    Add to Google Calendar
+                    Add to Google Calendar (1 Hour)
                     <ExternalLink size={12} className="opacity-70" />
                   </a>
 
@@ -786,10 +686,10 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate }) => {
                     A calendar confirmation and encrypted room link have been sent to <strong>{formData.email}</strong>.
                   </li>
                   <li>
-                    24 hours before your session, you will receive a gentle reminder with instructions on how to join.
+                    24 hours before your 1-hour session, you will receive a gentle reminder with instructions on how to join.
                   </li>
                   <li>
-                    No preparation is necessary. Come as you are—this is a space to breathe, be heard, and feel supported.
+                    No preparation is necessary. Come as you are—this is an unhurried space to breathe, be heard, and feel supported.
                   </li>
                 </ol>
               </div>
@@ -820,3 +720,4 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate }) => {
     </div>
   );
 };
+

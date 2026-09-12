@@ -162,7 +162,7 @@ app.post('/api/vi/bookings', async (req, res) => {
       await sendEmailSafe({
         to: email,
         subject: 'Confirmed: Your Clover Heart Haven Call',
-        html: `<p>Your 30-minute private consultation call has been scheduled for <strong>${date} at ${time}</strong>.</p>`
+        html: `<p>Your 1-hour private session has been scheduled for <strong>${date} at ${time}</strong>.</p>`
       });
     }
 
