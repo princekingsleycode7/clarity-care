@@ -120,7 +120,7 @@ app.post('/api/leads', async (req, res) => {
 // -------------------------------------------------------------------
 // 2. APPOINTMENT BOOKING ENDPOINT
 // -------------------------------------------------------------------
-app.post('/api/vi/bookings', async (req, res) => {
+app.post(['/api/bookings', '/api/vi/bookings', '/api/v1/bookings'], async (req, res) => {
   const { date, time, email } = req.body;
 
   if (!date || !time) {

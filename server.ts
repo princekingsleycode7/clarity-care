@@ -998,28 +998,45 @@ async function startServer(app: express.Express = express()) {
       const finalDate = date || scheduled_at || new Date().toISOString().split("T")[0];
       const finalTime = time || time_slot || slot || "10:00 AM";
       const finalEmail = email || "";
-      const finalName = name || firstName || "Guest";
 
       if (!finalDate || !finalTime) {
         return res.status(400).json({ success: false, error: "Date and time slot are required." });
       }
 
       let leadId = lead_id || null;
+      let finalName = (name || firstName || "").trim();
 
       // Link booking to existing lead if email is present
+      if (finalEmail) {
+        const memLead = memoryLeads.find((l) => l.email.toLowerCase() === finalEmail.toLowerCase());
+        if (memLead) {
+          if (!leadId) leadId = memLead.id;
+          if (!finalName && memLead.first_name) finalName = memLead.first_name;
+        }
+      }
+
       const db = getSupabase();
-      if (db && finalEmail) {
+      if (db && finalEmail && !leadId) {
         try {
           const { data: lead } = await db
             .from("leads")
-            .select("id")
+            .select("id, first_name")
             .eq("email", finalEmail)
             .maybeSingle();
-          if (lead) leadId = lead.id;
+          if (lead) {
+            leadId = lead.id;
+            if (!finalName && lead.first_name) finalName = lead.first_name;
+          }
         } catch (e) {
-          console.warn("Could not match lead:", e);
+          console.warn("Could not match lead in Supabase:", e);
         }
       }
+
+      if (!finalName && finalEmail) {
+        const localPart = finalEmail.split("@")[0].replace(/[._-]/g, " ");
+        finalName = localPart.charAt(0).toUpperCase() + localPart.slice(1);
+      }
+      if (!finalName) finalName = "Guest";
 
       const newLandingBooking: StoredLandingBooking = {
         id: `land_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
@@ -1457,6 +1474,10 @@ async function startServer(app: express.Express = express()) {
 
   app.get(["/lead-magnet/index2.html", "/lead-magnet/index2", "/leadmagnets/index2.html", "/leadmagnets/index2"], (req, res) => {
     res.sendFile(path.join(leadMagnetDir, "index2.html"));
+  });
+
+  app.get(["/lead-magnet/index_ig.html", "/lead-magnet/index_ig", "/leadmagnets/index_ig.html", "/leadmagnets/index_ig", "/index_ig.html", "/index_ig"], (req, res) => {
+    res.sendFile(path.join(leadMagnetDir, "index_ig.html"));
   });
 
   app.get(["/lead-magnet/*", "/leadmagnets/*", "/leadmagnet/*", "/lead-magnets/*"], (req, res) => {

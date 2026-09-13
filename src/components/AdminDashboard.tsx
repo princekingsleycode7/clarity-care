@@ -571,6 +571,17 @@ CREATE POLICY "Allow select analytics" ON public.analytics_events FOR SELECT TO 
             </button>
 
             <a
+              href="/lead-magnet/index_ig.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hidden md:inline-flex px-3 py-1.5 rounded-full bg-emerald-500/25 hover:bg-emerald-500/35 text-xs font-semibold text-emerald-100 items-center gap-1.5 transition-all border border-emerald-400/30"
+              title="Preview Instagram Lead Magnet (index_ig.html)"
+            >
+              <span>IG Magnet</span>
+              <ExternalLink size={12} />
+            </a>
+
+            <a
               href="/"
               className="px-3.5 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-xs font-medium text-white flex items-center gap-1.5 transition-all"
             >
