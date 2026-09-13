@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import crypto from 'crypto';
 import { createClient } from '@supabase/supabase-js';
 import { Resend } from 'resend';
 import OpenAI from 'openai';
@@ -70,6 +71,95 @@ async function sendEmailSafe({ to, subject, html }) {
 }
 
 // -------------------------------------------------------------------
+// Mailchimp Synchronization Helper
+// -------------------------------------------------------------------
+let cachedMailchimpListId = null;
+
+function getMailchimpConfig() {
+  const rawKey = (process.env.MAILCHIMP_API_KEY || '').trim();
+  if (!rawKey || rawKey.includes('your-mailchimp-key') || rawKey.length < 10) {
+    return null;
+  }
+  const parts = rawKey.split('-');
+  const dataCenter = parts.length > 1 ? parts[parts.length - 1].trim().toLowerCase() : 'us1';
+  return { apiKey: rawKey, dataCenter };
+}
+
+async function resolveMailchimpListId(config) {
+  const envListId = (process.env.MAILCHIMP_AUDIENCE_ID || process.env.MAILCHIMP_LIST_ID || '').trim();
+  if (envListId) return envListId;
+  if (cachedMailchimpListId) return cachedMailchimpListId;
+
+  try {
+    const res = await fetch(`https://${config.dataCenter}.api.mailchimp.com/3.0/lists?count=10&fields=lists.id,lists.name`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Basic ${Buffer.from(`anystring:${config.apiKey}`).toString('base64')}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.lists && data.lists.length > 0) {
+        cachedMailchimpListId = data.lists[0].id;
+        console.log(`[Mailchimp] Discovered Audience: "${data.lists[0].name}" (ID: ${cachedMailchimpListId})`);
+        return cachedMailchimpListId;
+      }
+    }
+  } catch (e) {
+    console.warn('[Mailchimp Lookup Exception]:', e);
+  }
+  return null;
+}
+
+async function syncLeadToMailchimp({ email, firstName, lastName = '', source = 'lead_magnet', tags = ['Clover Heart Haven', 'Lead Magnet'] }) {
+  const config = getMailchimpConfig();
+  if (!config) return { success: false, skipped: true };
+
+  const cleanEmail = (email || '').trim().toLowerCase();
+  if (!cleanEmail || !cleanEmail.includes('@')) return { success: false };
+
+  try {
+    const listId = await resolveMailchimpListId(config);
+    if (!listId) return { success: false, error: 'No audience list' };
+
+    const subscriberHash = crypto.createHash('md5').update(cleanEmail).digest('hex');
+    const payload = {
+      email_address: cleanEmail,
+      status_if_new: 'subscribed',
+      merge_fields: {
+        FNAME: firstName || '',
+        LNAME: lastName || '',
+        MMERGE3: source || 'website',
+      },
+      tags: Array.isArray(tags) ? tags : ['Clover Heart Haven'],
+    };
+
+    const url = `https://${config.dataCenter}.api.mailchimp.com/3.0/lists/${listId}/members/${subscriberHash}`;
+    const response = await fetch(url, {
+      method: 'PUT',
+      headers: {
+        Authorization: `Basic ${Buffer.from(`anystring:${config.apiKey}`).toString('base64')}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (response.ok) {
+      console.log(`[Mailchimp Success] Synced lead "${cleanEmail}" (${firstName || 'Anonymous'}) to Mailchimp.`);
+      return { success: true };
+    } else {
+      const errBody = await response.text();
+      console.warn(`[Mailchimp API Error ${response.status}]:`, errBody);
+      return { success: false };
+    }
+  } catch (err) {
+    console.warn('[Mailchimp Sync Exception]:', err);
+    return { success: false };
+  }
+}
+
+// -------------------------------------------------------------------
 // 1. LEAD CAPTURE & FREE GUIDE DISPATCH
 // -------------------------------------------------------------------
 app.post('/api/leads', async (req, res) => {
@@ -108,6 +198,14 @@ app.post('/api/leads', async (req, res) => {
     if (lead?.id) {
       generatePersonalizedFollowup(lead.id, firstName, source).catch(console.error);
     }
+
+    // D. Async Step: Sync Lead to Mailchimp Audience
+    syncLeadToMailchimp({
+      email,
+      firstName,
+      source: source || 'direct',
+      tags: ['Clover Heart Haven', 'Lead Magnet', source || 'direct'],
+    }).catch(console.error);
 
     return res.status(201).json({ success: true, message: 'Lead captured and guide sent.' });
 
@@ -164,6 +262,13 @@ app.post(['/api/bookings', '/api/vi/bookings', '/api/v1/bookings'], async (req, 
         subject: 'Confirmed: Your Clover Heart Haven Call',
         html: `<p>Your 1-hour private session has been scheduled for <strong>${date} at ${time}</strong>.</p>`
       });
+
+      // Sync lead with Booked status to Mailchimp
+      syncLeadToMailchimp({
+        email,
+        source: 'landing_booking_completion',
+        tags: ['Clover Heart Haven', 'Booked Client', '1-Hour Consultation']
+      }).catch(console.error);
     }
 
     return res.status(201).json({ success: true, message: 'Booking confirmed.' });

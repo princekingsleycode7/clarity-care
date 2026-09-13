@@ -1,6 +1,7 @@
 import express from "express";
 import path from "path";
 import fs from "fs";
+import crypto from "crypto";
 import { createServer as createViteServer } from "vite";
 import dotenv from "dotenv";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
@@ -133,6 +134,126 @@ Keep it concise, compassionate, non-salesy, and focused on emotional self-compas
     }
   } catch (err) {
     console.warn("Notice generating AI follow-up sequence:", err);
+  }
+}
+
+// -------------------------------------------------------------------
+// Mailchimp Integration: Sync Leads to Mailchimp Audience
+// -------------------------------------------------------------------
+let cachedMailchimpListId: string | null = null;
+
+function getMailchimpConfig(): { apiKey: string; dataCenter: string } | null {
+  const rawKey = (process.env.MAILCHIMP_API_KEY || "").trim();
+  if (!rawKey || rawKey.includes("your-mailchimp-key") || rawKey.length < 10) {
+    return null;
+  }
+
+  // Mailchimp API keys end with -usX (e.g. abc123456789-us21)
+  const parts = rawKey.split("-");
+  const dataCenter = parts.length > 1 ? parts[parts.length - 1].trim().toLowerCase() : "us1";
+
+  return { apiKey: rawKey, dataCenter };
+}
+
+async function resolveMailchimpListId(config: { apiKey: string; dataCenter: string }): Promise<string | null> {
+  const envListId = (process.env.MAILCHIMP_AUDIENCE_ID || process.env.MAILCHIMP_LIST_ID || "").trim();
+  if (envListId) return envListId;
+
+  if (cachedMailchimpListId) return cachedMailchimpListId;
+
+  try {
+    const res = await fetch(`https://${config.dataCenter}.api.mailchimp.com/3.0/lists?count=10&fields=lists.id,lists.name`, {
+      method: "GET",
+      headers: {
+        Authorization: `Basic ${Buffer.from(`anystring:${config.apiKey}`).toString("base64")}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (res.ok) {
+      const data: any = await res.json();
+      if (data.lists && data.lists.length > 0) {
+        cachedMailchimpListId = data.lists[0].id;
+        console.log(`[Mailchimp] Discovered default Audience: "${data.lists[0].name}" (ID: ${cachedMailchimpListId})`);
+        return cachedMailchimpListId;
+      }
+    } else {
+      const errText = await res.text();
+      console.warn("[Mailchimp List Lookup Warning]:", res.status, errText);
+    }
+  } catch (e) {
+    console.warn("[Mailchimp Lookup Exception]:", e);
+  }
+  return null;
+}
+
+export async function syncLeadToMailchimp({
+  email,
+  firstName,
+  lastName = "",
+  source = "lead_magnet",
+  tags = ["Clover Heart Haven", "Lead Magnet"],
+}: {
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  source?: string;
+  tags?: string[];
+}): Promise<{ success: boolean; error?: string; skipped?: boolean }> {
+  const config = getMailchimpConfig();
+  if (!config) {
+    // API key not configured yet
+    return { success: false, skipped: true, error: "MAILCHIMP_API_KEY not configured." };
+  }
+
+  const cleanEmail = (email || "").trim().toLowerCase();
+  if (!cleanEmail || !cleanEmail.includes("@")) {
+    return { success: false, error: "Invalid email for Mailchimp sync." };
+  }
+
+  try {
+    const listId = await resolveMailchimpListId(config);
+    if (!listId) {
+      console.warn("[Mailchimp Warning] No Mailchimp audience list ID found or created.");
+      return { success: false, error: "No Mailchimp audience list available." };
+    }
+
+    // Subscriber hash is MD5 of lowercased email (required for upsert / PUT)
+    const subscriberHash = crypto.createHash("md5").update(cleanEmail).digest("hex");
+
+    const payload = {
+      email_address: cleanEmail,
+      status_if_new: "subscribed",
+      merge_fields: {
+        FNAME: firstName || "",
+        LNAME: lastName || "",
+        MMERGE3: source || "website",
+      },
+      tags: Array.isArray(tags) ? tags : ["Clover Heart Haven"],
+    };
+
+    const url = `https://${config.dataCenter}.api.mailchimp.com/3.0/lists/${listId}/members/${subscriberHash}`;
+    const response = await fetch(url, {
+      method: "PUT",
+      headers: {
+        Authorization: `Basic ${Buffer.from(`anystring:${config.apiKey}`).toString("base64")}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (response.ok) {
+      const respData: any = await response.json();
+      console.log(`[Mailchimp Success] Synced lead "${cleanEmail}" (${firstName || "Anonymous"}) to list ${listId} (status: ${respData.status})`);
+      return { success: true };
+    } else {
+      const errBody = await response.text();
+      console.warn(`[Mailchimp API Error ${response.status}]:`, errBody);
+      return { success: false, error: `Mailchimp error (${response.status})` };
+    }
+  } catch (err: any) {
+    console.warn("[Mailchimp Sync Exception]:", err);
+    return { success: false, error: err.message || "Failed to sync to Mailchimp" };
   }
 }
 
@@ -671,6 +792,16 @@ async function startServer(app: express.Express = express()) {
         savedToSupabase = result.success;
       }
 
+      if (email && email.includes("@")) {
+        syncLeadToMailchimp({
+          email,
+          firstName: name ? name.split(" ")[0] : "Patient",
+          lastName: name && name.split(" ").length > 1 ? name.split(" ").slice(1).join(" ") : "",
+          source: "clover_clinic_intake",
+          tags: ["Clover Heart Haven", "Clinic Intake", "Booked Client"],
+        }).catch((e) => console.warn("Mailchimp booking sync warning:", e));
+      }
+
       return res.json({
         success: true,
         reference: finalReference,
@@ -938,6 +1069,14 @@ async function startServer(app: express.Express = express()) {
         console.warn("Background AI sequence warning:", e)
       );
 
+      // Async Step: Synchronize lead immediately to Mailchimp Audience
+      syncLeadToMailchimp({
+        email: resolvedEmail,
+        firstName: resolvedFirstName,
+        source: resolvedSource,
+        tags: ["Clover Heart Haven", "Lead Magnet", resolvedSource],
+      }).catch((e) => console.warn("Background Mailchimp sync warning:", e));
+
       return res.status(201).json({
         success: true,
         message: "Lead recorded successfully.",
@@ -1117,6 +1256,14 @@ async function startServer(app: express.Express = express()) {
             <p>Warmly,<br>The Clover Heart Haven Team</p>
           `,
         }).catch((e) => console.warn("Background booking confirmation email warning:", e));
+
+        // Sync lead with Booked tag to Mailchimp
+        syncLeadToMailchimp({
+          email: finalEmail,
+          firstName: finalName,
+          source: "landing_booking_completion",
+          tags: ["Clover Heart Haven", "Booked Client", "1-Hour Consultation"],
+        }).catch((e) => console.warn("Background Mailchimp booking sync warning:", e));
       }
 
       return res.status(201).json({
@@ -1377,9 +1524,17 @@ async function startServer(app: express.Express = express()) {
         }
       });
 
+      const mailchimpConf = getMailchimpConfig();
+      const mailchimpStatus = {
+        isConfigured: !!mailchimpConf,
+        dataCenter: mailchimpConf?.dataCenter || null,
+        listId: cachedMailchimpListId || process.env.MAILCHIMP_AUDIENCE_ID || process.env.MAILCHIMP_LIST_ID || null,
+      };
+
       return res.json({
         success: true,
         isSupabaseConnected: !!getSupabase(),
+        mailchimp: mailchimpStatus,
         stats: {
           totalVisitors: uniqueSessions || 1,
           totalPageviews: totalPageviews || analyticsList.length,
@@ -1452,6 +1607,25 @@ async function startServer(app: express.Express = express()) {
     } catch (err) {
       console.error("Error in update landing booking status:", err);
       return res.status(500).json({ success: false, error: "Failed to update booking status" });
+    }
+  });
+
+  // 10. API: Admin Test Mailchimp Sync Endpoint
+  app.post("/api/admin/mailchimp/test-sync", async (req, res) => {
+    try {
+      if (!verifyAdminRequest(req, res)) return;
+      const { email = "test@cloverhearthaven.com", firstName = "Clover", source = "admin_test" } = req.body;
+
+      const result = await syncLeadToMailchimp({
+        email,
+        firstName,
+        source,
+        tags: ["Clover Heart Haven", "Admin Test"],
+      });
+
+      return res.json({ success: result.success, skipped: result.skipped, error: result.error });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message || "Failed test sync" });
     }
   });
 

@@ -26,7 +26,8 @@ import {
   Eye,
   EyeOff,
   AlertCircle,
-  ArrowLeft
+  ArrowLeft,
+  Send
 } from 'lucide-react';
 
 interface ProductionBooking {
@@ -71,6 +72,11 @@ interface ScrollMilestone {
 
 interface AnalyticsData {
   isSupabaseConnected: boolean;
+  mailchimp?: {
+    isConfigured: boolean;
+    dataCenter: string | null;
+    listId: string | null;
+  };
   stats: {
     totalVisitors: number;
     totalPageviews: number;
@@ -106,7 +112,7 @@ export const AdminDashboard: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [activeTab, setActiveTab] = useState<
-    'chh_bookings' | 'landing_leads' | 'landing_bookings' | 'analytics' | 'supabase'
+    'chh_bookings' | 'landing_leads' | 'landing_bookings' | 'analytics' | 'supabase' | 'mailchimp'
   >('chh_bookings');
   
   const [copiedSql, setCopiedSql] = useState<boolean>(false);
@@ -117,6 +123,11 @@ export const AdminDashboard: React.FC = () => {
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [authError, setAuthError] = useState<string>('');
+  const [testEmailInput, setTestEmailInput] = useState<string>('');
+  const [testSyncStatus, setTestSyncStatus] = useState<{ loading: boolean; message: string | null; success?: boolean }>({
+    loading: false,
+    message: null,
+  });
 
   const sqlSchemaText = `-- Complete Supabase Schema for Clover Heart Haven & Landing Page
 -- 1. Clover Heart Haven Intake Bookings Table (productionbookings)
@@ -392,6 +403,56 @@ CREATE POLICY "Allow select analytics" ON public.analytics_events FOR SELECT TO 
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  // Test Mailchimp Synchronization
+  const handleTestMailchimpSync = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const targetEmail = (testEmailInput || '').trim() || 'test.lead@cloverhearthaven.com';
+    setTestSyncStatus({ loading: true, message: 'Sending test subscriber to Mailchimp...' });
+
+    try {
+      const res = await fetch('/api/admin/mailchimp/test-sync', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-passcode': passcode,
+          'x-admin-password': passcode,
+        },
+        body: JSON.stringify({
+          email: targetEmail,
+          firstName: 'Clover Test Lead',
+          source: 'admin_dashboard_test',
+        }),
+      });
+
+      const json = await res.json();
+      if (res.ok && json.success) {
+        setTestSyncStatus({
+          loading: false,
+          success: true,
+          message: `Successfully synced "${targetEmail}" to your Mailchimp Audience!`,
+        });
+      } else if (json.skipped) {
+        setTestSyncStatus({
+          loading: false,
+          success: false,
+          message: 'MAILCHIMP_API_KEY is not set yet in your environment variables. Add MAILCHIMP_API_KEY to activate.',
+        });
+      } else {
+        setTestSyncStatus({
+          loading: false,
+          success: false,
+          message: json.error || 'Failed to sync to Mailchimp. Check your API key.',
+        });
+      }
+    } catch (err: any) {
+      setTestSyncStatus({
+        loading: false,
+        success: false,
+        message: err.message || 'Network error attempting test sync.',
+      });
+    }
   };
 
   // Filter Clover Heart Haven Bookings
@@ -758,6 +819,26 @@ CREATE POLICY "Allow select analytics" ON public.analytics_events FOR SELECT TO 
             >
               <Database size={16} />
               <span>Database Schemas</span>
+            </button>
+
+            {/* Tab 6: Mailchimp Sync */}
+            <button
+              onClick={() => setActiveTab('mailchimp')}
+              className={`pb-3 px-3 text-xs sm:text-sm font-bold transition-all border-b-2 cursor-pointer flex items-center gap-2 ${
+                activeTab === 'mailchimp'
+                  ? 'border-[#1c2c19] text-[#1c2c19]'
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              <Mail size={16} />
+              <span>Mailchimp Sync</span>
+              <span className={`px-1.5 py-0.5 text-[10px] rounded-full font-bold ${
+                data?.mailchimp?.isConfigured
+                  ? 'bg-emerald-100 text-emerald-800'
+                  : 'bg-amber-100 text-amber-800'
+              }`}>
+                {data?.mailchimp?.isConfigured ? 'Active' : 'Key Required'}
+              </span>
             </button>
           </div>
 
@@ -1335,6 +1416,197 @@ CREATE POLICY "Allow select analytics" ON public.analytics_events FOR SELECT TO 
                   {sqlSchemaText}
                 </pre>
               </div>
+            </div>
+          </section>
+        )}
+
+        {/* TAB 6: MAILCHIMP AUTOMATION & SYNC */}
+        {activeTab === 'mailchimp' && (
+          <section className="space-y-6">
+            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-[#d2dbc8] shadow-sm space-y-6">
+              
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-200">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <div className="w-9 h-9 rounded-2xl bg-[#ffe01b] text-black flex items-center justify-center font-black text-base shadow-sm">
+                      M
+                    </div>
+                    <h2 className="text-xl font-bold text-[#1c2c19]">Mailchimp Direct Lead Sync</h2>
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    Automatically syncs all opt-in leads and booked appointments to your Mailchimp audience lists.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${
+                    data?.mailchimp?.isConfigured
+                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                      : 'bg-amber-50 text-amber-800 border border-amber-200'
+                  }`}>
+                    {data?.mailchimp?.isConfigured ? (
+                      <>
+                        <CheckCircle2 size={13} className="text-emerald-600" />
+                        <span>API Connected ({data?.mailchimp?.dataCenter || 'active'})</span>
+                      </>
+                    ) : (
+                      <>
+                        <AlertCircle size={13} className="text-amber-600" />
+                        <span>Awaiting MAILCHIMP_API_KEY</span>
+                      </>
+                    )}
+                  </span>
+                </div>
+              </div>
+
+              {/* Status Details Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="bg-[#f7faf5] p-5 rounded-2xl border border-[#d2dbc8] space-y-1.5">
+                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Configuration State</span>
+                  <div className="text-sm font-bold text-[#1c2c19] flex items-center gap-2">
+                    {data?.mailchimp?.isConfigured ? (
+                      <span className="text-emerald-700 flex items-center gap-1.5">
+                        <CheckCircle2 size={15} /> Active & Ready
+                      </span>
+                    ) : (
+                      <span className="text-amber-700 flex items-center gap-1.5">
+                        <AlertCircle size={15} /> Key Required
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-500">
+                    Loaded via <code className="bg-slate-100 px-1 py-0.5 rounded text-[10px]">MAILCHIMP_API_KEY</code>
+                  </p>
+                </div>
+
+                <div className="bg-[#f7faf5] p-5 rounded-2xl border border-[#d2dbc8] space-y-1.5">
+                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Mailchimp Datacenter</span>
+                  <div className="text-sm font-bold text-[#1c2c19]">
+                    {data?.mailchimp?.dataCenter ? (
+                      <span className="font-mono text-xs bg-slate-200/70 px-2 py-1 rounded-md text-slate-800">
+                        {data.mailchimp.dataCenter}
+                      </span>
+                    ) : (
+                      <span className="text-slate-400 italic">Auto-parsed from API key</span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-500">Extracted from suffix (e.g. <code className="text-[10px]">-us21</code>)</p>
+                </div>
+
+                <div className="bg-[#f7faf5] p-5 rounded-2xl border border-[#d2dbc8] space-y-1.5">
+                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Audience / List ID</span>
+                  <div className="text-sm font-bold text-[#1c2c19] truncate">
+                    {data?.mailchimp?.listId ? (
+                      <span className="font-mono text-xs bg-slate-200/70 px-2 py-1 rounded-md text-slate-800">
+                        {data.mailchimp.listId}
+                      </span>
+                    ) : (
+                      <span className="text-slate-600 font-medium text-xs">Auto-discovering first list</span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-500">Auto-detected or override via MAILCHIMP_AUDIENCE_ID</p>
+                </div>
+              </div>
+
+              {/* How it Works Information */}
+              <div className="rounded-2xl bg-amber-50/70 border border-amber-200/60 p-5 space-y-3">
+                <div className="flex items-center gap-2 text-sm font-bold text-amber-900">
+                  <Sparkles size={16} className="text-amber-700" />
+                  <span>Zero-Friction Zero-Maintenance Syncing</span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs text-amber-950">
+                  <div className="bg-white/80 p-3.5 rounded-xl border border-amber-200/50 space-y-1">
+                    <p className="font-bold text-[#1c2c19]">1. Lead Magnet Forms</p>
+                    <p className="text-slate-600 leading-relaxed">
+                      Every email submitted on <code>/lead-magnet/</code>, <code>index2.html</code>, or <code>index_ig.html</code> is immediately synced to Mailchimp with tags like <span className="font-medium text-[#1c2c19]">Lead Magnet</span>.
+                    </p>
+                  </div>
+                  <div className="bg-white/80 p-3.5 rounded-xl border border-amber-200/50 space-y-1">
+                    <p className="font-bold text-[#1c2c19]">2. Clinic Intake Bookings</p>
+                    <p className="text-slate-600 leading-relaxed">
+                      Every completed appointment on <code>/booking</code> is upserted with first name, phone, and tagged <span className="font-medium text-[#1c2c19]">Booked Client</span>.
+                    </p>
+                  </div>
+                  <div className="bg-white/80 p-3.5 rounded-xl border border-amber-200/50 space-y-1">
+                    <p className="font-bold text-[#1c2c19]">3. No Re-entry Required</p>
+                    <p className="text-slate-600 leading-relaxed">
+                      Uses MD5 subscriber hashing for idempotency. If a lead returns to book, their existing contact record is seamlessly updated with appointment tags.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Test Sync Interactive Tool */}
+              <div className="bg-[#f0f4ec] p-5 sm:p-6 rounded-2xl border border-[#d2dbc8] space-y-4">
+                <div className="space-y-1">
+                  <h3 className="text-sm font-bold text-[#1c2c19] flex items-center gap-2">
+                    <Send size={15} className="text-[#2c4724]" />
+                    <span>Test Mailchimp Connection</span>
+                  </h3>
+                  <p className="text-xs text-slate-600">
+                    Send a test contact to verify your Mailchimp API key is working with your Mailchimp Audience.
+                  </p>
+                </div>
+
+                <form onSubmit={handleTestMailchimpSync} className="flex flex-col sm:flex-row gap-2.5 max-w-xl">
+                  <input
+                    type="email"
+                    value={testEmailInput}
+                    onChange={(e) => setTestEmailInput(e.target.value)}
+                    placeholder="Enter test email (e.g. you@domain.com)"
+                    className="flex-1 px-3.5 py-2 rounded-xl text-xs bg-white border border-slate-300 text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#1c2c19]"
+                  />
+                  <button
+                    type="submit"
+                    disabled={testSyncStatus.loading}
+                    className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-[#1c2c19] hover:bg-[#2c4724] text-white text-xs font-bold shadow-sm transition-all disabled:opacity-50 cursor-pointer"
+                  >
+                    {testSyncStatus.loading ? (
+                      <>
+                        <RefreshCw size={13} className="animate-spin" />
+                        <span>Sending...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Send size={13} />
+                        <span>Send Test Lead</span>
+                      </>
+                    )}
+                  </button>
+                </form>
+
+                {testSyncStatus.message && (
+                  <div className={`p-3 rounded-xl text-xs flex items-center gap-2 ${
+                    testSyncStatus.success
+                      ? 'bg-emerald-100/90 text-emerald-900 border border-emerald-300'
+                      : 'bg-amber-100/90 text-amber-900 border border-amber-300'
+                  }`}>
+                    {testSyncStatus.success ? (
+                      <CheckCircle2 size={15} className="text-emerald-700 shrink-0" />
+                    ) : (
+                      <AlertCircle size={15} className="text-amber-700 shrink-0" />
+                    )}
+                    <span>{testSyncStatus.message}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Quick Setup Instructions */}
+              <div className="space-y-2 pt-2">
+                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">How to configure your API key</h4>
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs text-slate-700 space-y-2 font-mono">
+                  <p className="font-sans text-slate-600 font-normal">
+                    In your hosting provider (or local <code className="bg-slate-200 px-1 py-0.5 rounded text-slate-800">.env</code>), add:
+                  </p>
+                  <div className="bg-[#121c10] text-[#a4bc87] p-3 rounded-lg text-xs leading-relaxed overflow-x-auto">
+                    MAILCHIMP_API_KEY=your_mailchimp_api_key_here-us21
+                  </div>
+                  <p className="font-sans text-slate-500 text-[11px]">
+                    Note: Your API key ends in your datacenter prefix (like <code className="text-slate-700 font-semibold">-us21</code>, <code className="text-slate-700 font-semibold">-us1</code>). Our server automatically detects the datacenter and your primary audience list.
+                  </p>
+                </div>
+              </div>
+
             </div>
           </section>
         )}
