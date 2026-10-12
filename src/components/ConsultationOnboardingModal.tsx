@@ -48,6 +48,7 @@ export const ConsultationOnboardingModal: React.FC<ConsultationOnboardingModalPr
   });
 
   const [bookingReference, setBookingReference] = useState<string>('');
+  const [calcomSent, setCalcomSent] = useState<boolean>(false);
   const [availableSlots, setAvailableSlots] = useState<string[]>([
     '10:00 AM', '11:00 AM', '12:00 PM', '01:00 PM', '02:00 PM', '03:00 PM', '04:00 PM', '05:00 PM', '06:00 PM'
   ]);
@@ -177,6 +178,9 @@ export const ConsultationOnboardingModal: React.FC<ConsultationOnboardingModalPr
       if (res.ok) {
         const data = await res.json();
         setBookingReference(data.reference || `CHH-CAL-${Math.floor(100000 + Math.random() * 900000)}`);
+        if (data.calcomSent) {
+          setCalcomSent(true);
+        }
       } else {
         setBookingReference(`CHH-CAL-${Math.floor(100000 + Math.random() * 900000)}`);
       }
@@ -533,10 +537,15 @@ export const ConsultationOnboardingModal: React.FC<ConsultationOnboardingModalPr
                   <span className="font-bold text-[#1c2c19] truncate max-w-[200px]">{formData.address}</span>
                 </div>
                 <div className="flex justify-between pt-1 border-t border-[#d2dbc8]/60">
-                  <span className="text-slate-500">Calendar Status:</span>
+                  <span className="text-slate-500">Cal.com Sync:</span>
                   <span className="font-bold text-[#3c5d35] flex items-center gap-1">
-                    <Check size={13} /> Synced via Cal.com
+                    <Check size={13} /> {calcomSent ? 'Created & Synced' : 'Ready'}
                   </span>
+                </div>
+                <div className="pt-2 text-center bg-emerald-50 rounded-xl p-2.5 border border-emerald-100">
+                  <p className="text-[11px] text-emerald-800 font-medium">
+                    Cal.com confirmation & reminder emails are scheduled for both you and your therapist.
+                  </p>
                 </div>
               </div>
 

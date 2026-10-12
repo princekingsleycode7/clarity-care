@@ -77,6 +77,15 @@ interface AnalyticsData {
     dataCenter: string | null;
     listId: string | null;
   };
+  calcom?: {
+    isConfigured: boolean;
+    isPlaceholder?: boolean;
+    apiKeyMasked: string | null;
+    eventTypeId: string | number | null;
+    eventTypeName: string | null;
+    link: string | null;
+    remindersEnabled: boolean;
+  };
   stats: {
     totalVisitors: number;
     totalPageviews: number;
@@ -112,7 +121,7 @@ export const AdminDashboard: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [activeTab, setActiveTab] = useState<
-    'chh_bookings' | 'landing_leads' | 'landing_bookings' | 'analytics' | 'supabase' | 'mailchimp'
+    'chh_bookings' | 'landing_leads' | 'landing_bookings' | 'analytics' | 'supabase' | 'mailchimp' | 'calcom'
   >('chh_bookings');
   
   const [copiedSql, setCopiedSql] = useState<boolean>(false);
@@ -128,6 +137,43 @@ export const AdminDashboard: React.FC = () => {
     loading: false,
     message: null,
   });
+  const [calTestStatus, setCalTestStatus] = useState<{ loading: boolean; message: string | null; success?: boolean }>({
+    loading: false,
+    message: null,
+  });
+
+  const handleTestCalcom = async () => {
+    setCalTestStatus({ loading: true, message: null });
+    try {
+      const res = await fetch('/api/admin/calcom/test-verify', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-password': passcode,
+        },
+      });
+      const result = await res.json();
+      if (res.ok && result.success) {
+        setCalTestStatus({
+          loading: false,
+          success: true,
+          message: `Cal.com Verified! Key: ${result.apiKeyMasked} | Event: ${result.eventTypeName || result.eventTypeId || 'Default'} | Auto-reminders: Active`,
+        });
+      } else {
+        setCalTestStatus({
+          loading: false,
+          success: false,
+          message: result.error || 'Failed to verify Cal.com key',
+        });
+      }
+    } catch (err: any) {
+      setCalTestStatus({
+        loading: false,
+        success: false,
+        message: err.message || 'Network error verifying Cal.com',
+      });
+    }
+  };
 
   const sqlSchemaText = `-- Complete Supabase Schema for Clover Heart Haven & Landing Page
 -- 1. Clover Heart Haven Intake Bookings Table (productionbookings)
@@ -838,6 +884,32 @@ CREATE POLICY "Allow select analytics" ON public.analytics_events FOR SELECT TO 
                   : 'bg-amber-100 text-amber-800'
               }`}>
                 {data?.mailchimp?.isConfigured ? 'Active' : 'Key Required'}
+              </span>
+            </button>
+
+            {/* Tab 7: Cal.com & Reminders */}
+            <button
+              onClick={() => setActiveTab('calcom')}
+              className={`pb-3 px-3 text-xs sm:text-sm font-bold transition-all border-b-2 cursor-pointer flex items-center gap-2 ${
+                activeTab === 'calcom'
+                  ? 'border-[#1c2c19] text-[#1c2c19]'
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              <Calendar size={16} />
+              <span>Cal.com & Reminders</span>
+              <span className={`px-1.5 py-0.5 text-[10px] rounded-full font-bold ${
+                data?.calcom?.isConfigured
+                  ? 'bg-emerald-100 text-emerald-800'
+                  : data?.calcom?.isPlaceholder
+                  ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                  : 'bg-amber-100 text-amber-800'
+              }`}>
+                {data?.calcom?.isConfigured
+                  ? 'Key Active'
+                  : data?.calcom?.isPlaceholder
+                  ? 'Placeholder ("11")'
+                  : 'Secrets Config'}
               </span>
             </button>
           </div>
@@ -1603,6 +1675,214 @@ CREATE POLICY "Allow select analytics" ON public.analytics_events FOR SELECT TO 
                   </div>
                   <p className="font-sans text-slate-500 text-[11px]">
                     Note: Your API key ends in your datacenter prefix (like <code className="text-slate-700 font-semibold">-us21</code>, <code className="text-slate-700 font-semibold">-us1</code>). Our server automatically detects the datacenter and your primary audience list.
+                  </p>
+                </div>
+              </div>
+
+            </div>
+          </section>
+        )}
+
+        {/* TAB 7: CAL.COM BOOKER & REMINDERS */}
+        {activeTab === 'calcom' && (
+          <section className="space-y-6">
+            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-[#d2dbc8] shadow-sm space-y-6">
+              
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-200">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <div className="w-9 h-9 rounded-2xl bg-[#1c2c19] text-white flex items-center justify-center font-bold text-base shadow-sm">
+                      <Calendar size={18} />
+                    </div>
+                    <h2 className="text-xl font-bold text-[#1c2c19]">Cal.com API & Automated Reminders</h2>
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    Live booking creation via Cal.com API v2 with automatic calendar invites and reminder emails to both parties.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${
+                    data?.calcom?.isConfigured
+                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                      : 'bg-amber-50 text-amber-800 border border-amber-200'
+                  }`}>
+                    {data?.calcom?.isConfigured ? (
+                      <>
+                        <CheckCircle2 size={13} className="text-emerald-600" />
+                        <span>Cal.com API Configured</span>
+                      </>
+                    ) : (
+                      <>
+                        <AlertCircle size={13} className="text-amber-600" />
+                        <span>Awaiting CALCOM_API_KEY in Secrets</span>
+                      </>
+                    )}
+                  </span>
+                </div>
+              </div>
+
+              {/* Placeholder Key & Event Diagnostic Banner */}
+              {data?.calcom?.isPlaceholder && (
+                <div className="p-5 rounded-2xl bg-amber-50 border border-amber-300 text-amber-950 space-y-2">
+                  <div className="flex items-center gap-2 font-bold text-sm text-amber-900">
+                    <AlertCircle size={18} className="text-amber-700 shrink-0" />
+                    <span>Why Reminders Are Not Sending Yet: Placeholder Key &amp; Missing Event Type</span>
+                  </div>
+                  <div className="text-xs text-amber-900/90 space-y-1.5 leading-relaxed">
+                    <p>
+                      <strong>1. API Key is currently set to &quot;11&quot;:</strong> Your secret <code className="bg-amber-100 font-mono px-1 py-0.5 rounded text-amber-950">CALCOM_API_KEY</code> is set to the test placeholder value <code className="font-mono bg-amber-100 px-1 py-0.5 rounded">&quot;11&quot;</code>. Real Cal.com API keys start with <code className="font-mono bg-amber-100 px-1 py-0.5 rounded">cal_live_...</code>. Because &quot;11&quot; is invalid, Cal.com rejects requests with <em>401 Unauthorized</em>.
+                    </p>
+                    <p>
+                      <strong>2. Event Type not created in Cal.com yet:</strong> In Cal.com, an <strong>Event Type</strong> (e.g. &quot;15-Min Consultation&quot;) must exist in your account. Cal.com cannot book appointments or trigger reminder emails without an active Event Type and an attached <strong>Reminder Workflow</strong>.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Status Metric Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="p-4 rounded-2xl bg-[#f7faf5] border border-[#d2dbc8] space-y-1">
+                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">API Key Status</span>
+                  <div className="text-sm font-mono font-bold text-[#1c2c19] flex items-center gap-2">
+                    {data?.calcom?.isConfigured ? (
+                      <>
+                        <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                        <span>{data.calcom.apiKeyMasked}</span>
+                      </>
+                    ) : data?.calcom?.isPlaceholder ? (
+                      <>
+                        <span className="w-2 h-2 rounded-full bg-amber-500" />
+                        <span className="text-amber-700 font-sans text-xs">{data.calcom.apiKeyMasked}</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="w-2 h-2 rounded-full bg-amber-500" />
+                        <span className="text-amber-700 font-sans text-xs">CALCOM_API_KEY needed in Secrets</span>
+                      </>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-slate-500">
+                    Supports CALCOM_API_KEY, CAL_API_KEY, or CALCOM_TOKEN in secrets.
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-[#f7faf5] border border-[#d2dbc8] space-y-1">
+                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Event Type</span>
+                  <div className="text-sm font-bold text-[#1c2c19]">
+                    {data?.calcom?.eventTypeName || (data?.calcom?.eventTypeId ? `Event ID: ${data.calcom.eventTypeId}` : 'Awaiting Event in Cal.com')}
+                  </div>
+                  <p className="text-[10px] text-slate-500">
+                    Auto-discovers consultation types or uses CALCOM_EVENT_TYPE_ID.
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-[#f7faf5] border border-[#d2dbc8] space-y-1">
+                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Automated Reminders</span>
+                  <div className={`text-sm font-bold flex items-center gap-1.5 ${
+                    data?.calcom?.isConfigured ? 'text-emerald-800' : 'text-amber-800'
+                  }`}>
+                    {data?.calcom?.isConfigured ? (
+                      <>
+                        <CheckCircle2 size={14} className="text-emerald-600" />
+                        <span>Active via Cal.com</span>
+                      </>
+                    ) : (
+                      <>
+                        <AlertCircle size={14} className="text-amber-600" />
+                        <span>Requires Key &amp; Event</span>
+                      </>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-slate-500">
+                    {data?.calcom?.isConfigured
+                      ? 'Sends calendar invitations, 24h & 1h reminders to both parties.'
+                      : 'Set up an Event Type & Workflow in Cal.com dashboard.'}
+                  </p>
+                </div>
+              </div>
+
+              {/* How Reminders & Booking Flow Works */}
+              <div className="p-5 rounded-2xl bg-[#eef4ec] border border-[#2d4728]/15 space-y-3">
+                <strong className="font-bold text-[#1c2c19] text-xs uppercase tracking-wider flex items-center gap-2">
+                  <Sparkles size={14} className="text-[#3b5936]" />
+                  How Cal.com Notifications &amp; Reminders Work
+                </strong>
+                <ol className="text-xs text-[#283e25] space-y-2 list-decimal list-inside leading-relaxed">
+                  <li>
+                    <strong>Client Schedules:</strong> A client completes booking on <code className="bg-white/80 px-1 py-0.5 rounded text-[#1c2c19] font-mono">/book-session</code> or the consultation intake modal.
+                  </li>
+                  <li>
+                    <strong>API Booking Creation:</strong> Our server immediately calls <code className="bg-white/80 px-1 py-0.5 rounded text-[#1c2c19] font-mono">POST https://api.cal.com/v2/bookings</code> with your secret API key.
+                  </li>
+                  <li>
+                    <strong>Calendar Invitation:</strong> Cal.com creates the event in your Google / Outlook calendar and emails the ICS invitation to both you and the client.
+                  </li>
+                  <li>
+                    <strong>Automated Reminders:</strong> Cal.com triggers your reminder sequence (e.g. 24 hours and 1 hour before the session) directly to both email addresses.
+                  </li>
+                </ol>
+              </div>
+
+              {/* Test Connection Button */}
+              <div className="p-5 rounded-2xl bg-white border border-[#d2dbc8] space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-bold text-[#1c2c19]">Verify Cal.com Connection</h3>
+                    <p className="text-xs text-slate-500">
+                      Tests your Cal.com API key and verifies that event types and reminder workflows are ready.
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={handleTestCalcom}
+                    disabled={calTestStatus.loading}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#1c2c19] hover:bg-[#2c4724] text-white text-xs font-bold transition-all shadow-sm disabled:opacity-50 cursor-pointer"
+                  >
+                    {calTestStatus.loading ? (
+                      <>
+                        <RefreshCw size={14} className="animate-spin" />
+                        <span>Verifying...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Check size={14} />
+                        <span>Verify Cal.com Connection</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {calTestStatus.message && (
+                  <div className={`p-3.5 rounded-xl text-xs flex items-center gap-2.5 ${
+                    calTestStatus.success
+                      ? 'bg-emerald-50 text-emerald-900 border border-emerald-300'
+                      : 'bg-amber-50 text-amber-900 border border-amber-300'
+                  }`}>
+                    {calTestStatus.success ? (
+                      <CheckCircle2 size={16} className="text-emerald-700 shrink-0" />
+                    ) : (
+                      <AlertCircle size={16} className="text-amber-700 shrink-0" />
+                    )}
+                    <span>{calTestStatus.message}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Secrets Setup Reference */}
+              <div className="space-y-2 pt-2">
+                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">How to add Cal.com API key to Secrets</h4>
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs text-slate-700 space-y-2 font-mono">
+                  <p className="font-sans text-slate-600 font-normal">
+                    In your AI Studio Secrets (or hosting environment variables), add:
+                  </p>
+                  <div className="bg-[#121c10] text-[#a4bc87] p-3 rounded-lg text-xs leading-relaxed overflow-x-auto space-y-1">
+                    <div>CALCOM_API_KEY=cal_live_xxxxxxxxxxxxxxxxxxxxxxxx</div>
+                    <div className="text-slate-400"># Optional: specify custom event type (our server auto-discovers if omitted)</div>
+                    <div>CALCOM_EVENT_TYPE_ID=12345</div>
+                  </div>
+                  <p className="font-sans text-slate-500 text-[11px]">
+                    Once set in Secrets, all bookings on <code className="font-semibold text-slate-700">/book-session</code>, the site consultation modal, and lead magnet immediately create live bookings in Cal.com with automatic reminder emails sent to both parties.
                   </p>
                 </div>
               </div>

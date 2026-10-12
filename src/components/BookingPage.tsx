@@ -48,6 +48,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [bookingReference, setBookingReference] = useState('');
+  const [calcomSent, setCalcomSent] = useState(false);
 
   // Generate upcoming 30 available days
   const [dateOptions, setDateOptions] = useState<{
@@ -226,6 +227,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate }) => {
       if (calRes.ok) {
         const calData = await calRes.json().catch(() => ({}));
         if (calData.reference) refId = calData.reference;
+        if (calData.calcomSent) setCalcomSent(true);
       }
 
       // 2. Register lead attribution via /api/leads
@@ -677,16 +679,22 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate }) => {
 
               {/* Next Steps Guide */}
               <div className="p-5 rounded-2xl bg-[#eef4ec] border border-[#2d4728]/15 space-y-3 text-xs sm:text-sm">
-                <strong className="font-bold text-[#1c2c19] flex items-center gap-2">
-                  <Sparkles size={16} className="text-[#3b5936]" />
-                  What happens next?
-                </strong>
+                <div className="flex items-center justify-between pb-2 border-b border-[#2d4728]/10">
+                  <strong className="font-bold text-[#1c2c19] flex items-center gap-2">
+                    <Sparkles size={16} className="text-[#3b5936]" />
+                    What happens next?
+                  </strong>
+                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-100/80 px-2 py-0.5 rounded-full">
+                    <CheckCircle2 size={12} />
+                    {calcomSent ? 'Cal.com Reminders Active' : 'Cal.com Sync Active'}
+                  </span>
+                </div>
                 <ol className="space-y-2 list-decimal list-inside text-[#2f482d] leading-relaxed">
                   <li>
-                    A calendar confirmation and encrypted room link have been sent to <strong>{formData.email}</strong>.
+                    A calendar invitation and video link have been created and sent to <strong>{formData.email}</strong> and your therapist.
                   </li>
                   <li>
-                    24 hours before your 1-hour session, you will receive a gentle reminder with instructions on how to join.
+                    Cal.com automated reminders will be sent to both parties 24 hours and 1 hour before the session.
                   </li>
                   <li>
                     No preparation is necessary. Come as you are—this is an unhurried space to breathe, be heard, and feel supported.

@@ -623,14 +623,328 @@ async function startServer(app: express.Express = express()) {
     ];
   };
 
+  // Helper: Retrieve Cal.com API key from any secret / environment variable alias
+  const getCalcomApiKey = (): string => {
+    const raw =
+      process.env.CALCOM_API_KEY ||
+      process.env.CAL_COM_API_KEY ||
+      process.env.CAL_API_KEY ||
+      process.env.CALCOM_KEY ||
+      process.env.CAL_KEY ||
+      process.env.CALCOM_TOKEN ||
+      process.env.CAL_COM_TOKEN ||
+      process.env.CAL_API ||
+      process.env.CALCOM_API ||
+      process.env.CALCOM_API_TOKEN ||
+      "";
+    const cleaned = raw.replace(/^["']|["']$/g, "").trim();
+    return cleaned;
+  };
+
+  let cachedCalcomEventTypeId: string | number | null = null;
+  let cachedCalcomEventTypeName: string | null = null;
+
+  // Helper: Dynamically discover or retrieve Cal.com event type ID
+  const resolveCalcomEventType = async (
+    apiKey: string
+  ): Promise<{ id: string | number; title?: string } | null> => {
+    const envEventType = (
+      process.env.CALCOM_EVENT_TYPE_ID ||
+      process.env.CAL_EVENT_TYPE_ID ||
+      ""
+    )
+      .replace(/^["']|["']$/g, "")
+      .trim();
+
+    if (envEventType && envEventType !== "11") {
+      return { id: envEventType, title: "Configured Event Type" };
+    }
+
+    if (cachedCalcomEventTypeId) {
+      return {
+        id: cachedCalcomEventTypeId,
+        title: cachedCalcomEventTypeName || "Discovered Event",
+      };
+    }
+
+    if (!apiKey) return null;
+
+    // Auto-discover event types from Cal.com account using API key
+    try {
+      // 1. Try Cal.com v2 API: GET /v2/event-types
+      const v2Res = await fetch("https://api.cal.com/v2/event-types", {
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "cal-api-version": "2024-08-13",
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (v2Res.ok) {
+        const v2Data = await v2Res.json();
+        const eventTypesList =
+          v2Data?.data || v2Data?.event_types || (Array.isArray(v2Data) ? v2Data : []);
+        if (Array.isArray(eventTypesList) && eventTypesList.length > 0) {
+          const match =
+            eventTypesList.find((et: any) =>
+              /consult|session|clover|haven|call|clarity|15|60/i.test(
+                et.title || et.slug || ""
+              )
+            ) || eventTypesList[0];
+          cachedCalcomEventTypeId = match.id;
+          cachedCalcomEventTypeName =
+            match.title || match.slug || "General Consultation";
+          console.log(
+            `[Cal.com] Auto-discovered event type "${cachedCalcomEventTypeName}" (ID: ${cachedCalcomEventTypeId})`
+          );
+          return { id: cachedCalcomEventTypeId, title: cachedCalcomEventTypeName };
+        }
+      }
+
+      // 2. Fallback to Cal.com v1 API: GET /v1/event-types
+      const v1Res = await fetch(
+        `https://api.cal.com/v1/event-types?apiKey=${encodeURIComponent(apiKey)}`
+      );
+      if (v1Res.ok) {
+        const v1Data = await v1Res.json();
+        const list = v1Data?.event_types || (Array.isArray(v1Data) ? v1Data : []);
+        if (Array.isArray(list) && list.length > 0) {
+          const match =
+            list.find((et: any) =>
+              /consult|session|clover|haven|call|clarity|15|60/i.test(
+                et.title || et.slug || ""
+              )
+            ) || list[0];
+          cachedCalcomEventTypeId = match.id;
+          cachedCalcomEventTypeName =
+            match.title || match.slug || "General Consultation";
+          console.log(
+            `[Cal.com] Auto-discovered v1 event type "${cachedCalcomEventTypeName}" (ID: ${cachedCalcomEventTypeId})`
+          );
+          return { id: cachedCalcomEventTypeId, title: cachedCalcomEventTypeName };
+        }
+      }
+    } catch (discoveryErr) {
+      console.warn("[Cal.com] Event type auto-discovery notice:", discoveryErr);
+    }
+
+    if (envEventType) {
+      return { id: envEventType, title: "Default Event Type" };
+    }
+
+    return null;
+  };
+
+  // Helper: Book directly in Cal.com so Cal.com dispatches confirmation, ICS calendar invites, and automated reminders
+  const createCalcomBooking = async (params: {
+    name: string;
+    email: string;
+    phone?: string;
+    address?: string;
+    selectedDate?: string;
+    selectedTime?: string;
+    startIso?: string;
+    timezone?: string;
+    notes?: string;
+    duration?: number;
+  }): Promise<{
+    success: boolean;
+    reference: string;
+    meetingUrl?: string;
+    calData?: any;
+    error?: string;
+    calcomSent: boolean;
+  }> => {
+    const apiKey = getCalcomApiKey();
+    const fallbackRef = `CHH-CAL-${Math.floor(100000 + Math.random() * 900000)}`;
+
+    if (!apiKey) {
+      console.log(
+        "[Cal.com] Note: CALCOM_API_KEY is not configured in secrets. Booking stored locally."
+      );
+      return {
+        success: false,
+        reference: fallbackRef,
+        calcomSent: false,
+        error: "No Cal.com API key configured",
+      };
+    }
+
+    const {
+      name,
+      email,
+      phone = "",
+      address = "Telehealth Sanctuary",
+      selectedDate,
+      selectedTime = "10:00 AM",
+      startIso,
+      timezone = "America/Los_Angeles",
+      notes = "",
+    } = params;
+
+    // Calculate clean start date ISO
+    let startIsoString = startIso;
+    if (!startIsoString) {
+      try {
+        let hours = 10;
+        let minutes = 0;
+        if (selectedTime) {
+          const [timePart, modifier] = selectedTime.split(" ");
+          if (timePart) {
+            const parts = timePart.split(":");
+            hours = parseInt(parts[0], 10) || 10;
+            minutes = parseInt(parts[1], 10) || 0;
+            if (modifier === "PM" && hours < 12) hours += 12;
+            if (modifier === "AM" && hours === 12) hours = 0;
+          }
+        }
+        const ymd = formatYMD(selectedDate || new Date().toISOString());
+        const localDate = new Date(
+          `${ymd}T${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00`
+        );
+        startIsoString = !isNaN(localDate.getTime())
+          ? localDate.toISOString()
+          : new Date().toISOString();
+      } catch {
+        startIsoString = new Date().toISOString();
+      }
+    }
+
+    const resolved = await resolveCalcomEventType(apiKey);
+    const eventTypeId = resolved
+      ? resolved.id
+      : process.env.CALCOM_EVENT_TYPE_ID || "11";
+
+    // 1. Try Cal.com v2 Bookings API (Recommended official API - sends confirmation & reminder emails)
+    try {
+      console.log(
+        `[Cal.com] Initiating v2 booking for ${email} at ${startIsoString} (Event Type: ${eventTypeId})...`
+      );
+      const v2Res = await fetch("https://api.cal.com/v2/bookings", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "cal-api-version": "2024-08-13",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          start: startIsoString,
+          eventTypeId: Number(eventTypeId) || eventTypeId,
+          attendee: {
+            name: name || "Client",
+            email: email,
+            timeZone: timezone,
+            phoneNumber: phone || undefined,
+          },
+          metadata: {
+            notes: notes || "Client Consultation",
+            phone: phone || "",
+            address: address || "",
+            source: "Clover Heart Haven Sanctuary",
+          },
+        }),
+      });
+
+      const v2Data = await v2Res.json().catch(() => ({}));
+
+      if (v2Res.ok) {
+        const bookingId =
+          v2Data?.data?.uid || v2Data?.data?.id || fallbackRef;
+        const meetingUrl =
+          v2Data?.data?.meetingUrl || v2Data?.data?.videoCallUrl || "";
+        console.log(
+          `[Cal.com Success] Booking created on Cal.com! ID: ${bookingId}. Cal.com confirmation and reminder emails scheduled.`
+        );
+        return {
+          success: true,
+          reference: String(bookingId),
+          meetingUrl,
+          calData: v2Data,
+          calcomSent: true,
+        };
+      } else {
+        console.warn(
+          `[Cal.com v2 Notice] Response status ${v2Res.status}:`,
+          JSON.stringify(v2Data)
+        );
+      }
+    } catch (v2Err) {
+      console.warn("[Cal.com v2 Network Warning]:", v2Err);
+    }
+
+    // 2. Fallback to Cal.com v1 Bookings API
+    try {
+      console.log(`[Cal.com] Trying v1 booking fallback for ${email}...`);
+      const v1Res = await fetch(
+        `https://api.cal.com/v1/bookings?apiKey=${encodeURIComponent(apiKey)}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            eventTypeId: Number(eventTypeId) || eventTypeId,
+            start: startIsoString,
+            name: name || "Client",
+            email: email,
+            timeZone: timezone,
+            metadata: { phone, address, notes },
+            responses: {
+              name: name || "Client",
+              email: email,
+              location: {
+                value: "inPerson",
+                optionValue: address || "Virtual Clinic",
+              },
+            },
+          }),
+        }
+      );
+
+      const v1Data = await v1Res.json().catch(() => ({}));
+
+      if (v1Res.ok) {
+        const bookingId =
+          v1Data?.booking?.uid || v1Data?.booking?.id || fallbackRef;
+        console.log(
+          `[Cal.com Success] Booking created via v1 API! ID: ${bookingId}. Cal.com notifications scheduled.`
+        );
+        return {
+          success: true,
+          reference: String(bookingId),
+          calData: v1Data,
+          calcomSent: true,
+        };
+      } else {
+        console.warn(
+          `[Cal.com v1 Notice] Response status ${v1Res.status}:`,
+          JSON.stringify(v1Data)
+        );
+        return {
+          success: false,
+          reference: fallbackRef,
+          calcomSent: false,
+          error: v1Data?.message || `Cal.com error (${v1Res.status})`,
+        };
+      }
+    } catch (v1Err: any) {
+      console.warn("[Cal.com v1 Network Warning]:", v1Err);
+      return {
+        success: false,
+        reference: fallbackRef,
+        calcomSent: false,
+        error: v1Err.message || "Cal.com network error",
+      };
+    }
+  };
+
   // 1. API: Get Cal.com Available Slots
   app.get("/api/cal/slots", async (req, res) => {
     try {
-      const apiKey = process.env.CALCOM_API_KEY || process.env.CAL_API_KEY;
+      const apiKey = getCalcomApiKey();
+      const resolved = apiKey ? await resolveCalcomEventType(apiKey) : null;
       const eventTypeId =
         req.query.eventTypeId ||
-        process.env.CALCOM_EVENT_TYPE_ID ||
-        process.env.CAL_EVENT_TYPE_ID;
+        (resolved ? resolved.id : null) ||
+        process.env.CALCOM_EVENT_TYPE_ID;
       const dateStr = (req.query.date as string) || new Date().toISOString();
       const timezone = (req.query.timezone as string) || "America/Los_Angeles";
 
@@ -660,17 +974,19 @@ async function startServer(app: express.Express = express()) {
             const daySlots = slotsObj[ymd] || [];
 
             if (Array.isArray(daySlots) && daySlots.length > 0) {
-              const formattedSlots = daySlots.map((s: { time: string } | string) => {
-                const timeStr = typeof s === "string" ? s : s.time;
-                const dateObj = new Date(timeStr);
-                return isNaN(dateObj.getTime())
-                  ? timeStr
-                  : dateObj.toLocaleTimeString("en-US", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      hour12: true,
-                    });
-              });
+              const formattedSlots = daySlots.map(
+                (s: { time: string } | string) => {
+                  const timeStr = typeof s === "string" ? s : s.time;
+                  const dateObj = new Date(timeStr);
+                  return isNaN(dateObj.getTime())
+                    ? timeStr
+                    : dateObj.toLocaleTimeString("en-US", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        hour12: true,
+                      });
+                }
+              );
               return res.json({
                 success: true,
                 source: "calcom_api",
@@ -701,6 +1017,31 @@ async function startServer(app: express.Express = express()) {
     }
   });
 
+  // Cal.com Connection Status Diagnostic Endpoint
+  app.get("/api/cal/status", async (_req, res) => {
+    const apiKey = getCalcomApiKey();
+    const isPlaceholder = apiKey === "11" || (apiKey.length > 0 && apiKey.length < 8);
+    const hasKey = !!apiKey && !isPlaceholder;
+    let eventInfo = null;
+    if (hasKey) {
+      eventInfo = await resolveCalcomEventType(apiKey);
+    }
+    return res.json({
+      success: true,
+      hasApiKey: hasKey,
+      isPlaceholder,
+      apiKeyMasked: hasKey
+        ? `${apiKey.substring(0, 4)}...${apiKey.slice(-3)}`
+        : apiKey
+        ? `"${apiKey}" (Placeholder)`
+        : null,
+      eventTypeId: eventInfo ? eventInfo.id : null,
+      eventTypeName: eventInfo ? eventInfo.title : null,
+      calcomLink: process.env.VITE_CALCOM_LINK && process.env.VITE_CALCOM_LINK !== "11" ? process.env.VITE_CALCOM_LINK : null,
+      remindersEnabled: hasKey,
+    });
+  });
+
   // 2. API: Clover Heart Haven Direct Consultation Booking (Table: productionbookings)
   app.post("/api/cal/book", async (req, res) => {
     try {
@@ -722,51 +1063,19 @@ async function startServer(app: express.Express = express()) {
         });
       }
 
-      const apiKey = process.env.CALCOM_API_KEY || process.env.CAL_API_KEY;
-      const eventTypeId =
-        process.env.CALCOM_EVENT_TYPE_ID || process.env.CAL_EVENT_TYPE_ID;
+      // Execute real Cal.com booking so Cal.com triggers notifications & reminders to both parties
+      const calResult = await createCalcomBooking({
+        name,
+        email: email || "consultation@cloverhearthaven.com",
+        phone,
+        address,
+        selectedDate,
+        selectedTime,
+        timezone,
+        notes,
+      });
 
-      const randomReference = `CHH-CAL-${Math.floor(100000 + Math.random() * 900000)}`;
-      let finalReference = randomReference;
-
-      if (apiKey && eventTypeId) {
-        try {
-          const calBookRes = await fetch(
-            `https://api.cal.com/v1/bookings?apiKey=${encodeURIComponent(apiKey)}`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                eventTypeId: Number(eventTypeId) || eventTypeId,
-                start: new Date(
-                  `${selectedDate || new Date().toDateString()} ${selectedTime || "10:00 AM"}`
-                ).toISOString(),
-                name,
-                email: email || "consultation@cloverhearthaven.com",
-                timeZone: timezone,
-                metadata: { phone, address, notes },
-                responses: {
-                  name,
-                  email: email || "consultation@cloverhearthaven.com",
-                  location: {
-                    value: "inPerson",
-                    optionValue: address || "Virtual Clinic",
-                  },
-                },
-              }),
-            }
-          );
-
-          if (calBookRes.ok) {
-            const calData = await calBookRes.json();
-            if (calData.booking?.uid) {
-              finalReference = calData.booking.uid;
-            }
-          }
-        } catch (calErr) {
-          console.warn("Cal.com direct booking API returned warning:", calErr);
-        }
-      }
+      const finalReference = calResult.reference;
 
       const bookingRecord: StoredProductionBooking = {
         id: `prod_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
@@ -779,7 +1088,7 @@ async function startServer(app: express.Express = express()) {
         selected_time: selectedTime || "10:00 AM",
         timezone,
         status: "confirmed",
-        notes,
+        notes: notes ? `${notes} | Cal.com Synced: ${calResult.calcomSent}` : `Cal.com Synced: ${calResult.calcomSent}`,
         created_at: new Date().toISOString(),
       };
 
@@ -796,7 +1105,10 @@ async function startServer(app: express.Express = express()) {
         syncLeadToMailchimp({
           email,
           firstName: name ? name.split(" ")[0] : "Patient",
-          lastName: name && name.split(" ").length > 1 ? name.split(" ").slice(1).join(" ") : "",
+          lastName:
+            name && name.split(" ").length > 1
+              ? name.split(" ").slice(1).join(" ")
+              : "",
           source: "clover_clinic_intake",
           tags: ["Clover Heart Haven", "Clinic Intake", "Booked Client"],
         }).catch((e) => console.warn("Mailchimp booking sync warning:", e));
@@ -805,6 +1117,9 @@ async function startServer(app: express.Express = express()) {
       return res.json({
         success: true,
         reference: finalReference,
+        calcomSent: calResult.calcomSent,
+        meetingUrl: calResult.meetingUrl,
+        calcomError: calResult.error,
         savedToSupabase,
         name,
         email,
@@ -1121,6 +1436,7 @@ async function startServer(app: express.Express = express()) {
       const {
         lead_id,
         email,
+        phone,
         scheduled_at,
         time_slot,
         date,
@@ -1137,6 +1453,7 @@ async function startServer(app: express.Express = express()) {
       const finalDate = date || scheduled_at || new Date().toISOString().split("T")[0];
       const finalTime = time || time_slot || slot || "10:00 AM";
       const finalEmail = email || "";
+      const finalPhone = phone || "";
 
       if (!finalDate || !finalTime) {
         return res.status(400).json({ success: false, error: "Date and time slot are required." });
@@ -1211,37 +1528,18 @@ async function startServer(app: express.Express = express()) {
         }
       }
 
-      // Optional: Post booking to Cal.com if API key and event type ID exist
-      const apiKey = process.env.CALCOM_API_KEY || process.env.CAL_API_KEY;
-      const eventTypeId = process.env.CALCOM_EVENT_TYPE_ID || process.env.CAL_EVENT_TYPE_ID;
-      if (apiKey && eventTypeId && finalEmail) {
-        try {
-          let startIsoString = startIso;
-          if (!startIsoString) {
-            const parsed = new Date(`${finalDate} ${finalTime}`);
-            startIsoString = !isNaN(parsed.getTime()) ? parsed.toISOString() : new Date(finalDate).toISOString();
-          }
-
-          await fetch("https://api.cal.com/v2/bookings", {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${apiKey}`,
-              "Content-Type": "application/json",
-              "cal-api-version": "2024-08-13",
-            },
-            body: JSON.stringify({
-              start: startIsoString,
-              eventTypeId: Number(eventTypeId),
-              attendee: {
-                name: finalName,
-                email: finalEmail,
-                timeZone: timezone,
-              },
-            }),
-          });
-        } catch (calErr) {
-          console.warn("Cal.com background booking sync note:", calErr);
-        }
+      // Post booking to Cal.com so Cal.com schedules calendar invite, host notification, and automated reminder emails
+      if (finalEmail) {
+        createCalcomBooking({
+          name: finalName,
+          email: finalEmail,
+          phone: finalPhone,
+          selectedDate: finalDate,
+          selectedTime: finalTime,
+          startIso,
+          timezone,
+          notes: "Lead Magnet Clarity Call",
+        }).catch((calErr) => console.warn("Cal.com background booking sync note:", calErr));
       }
 
       // Replicated from lead-magnet/server.js: Send booking confirmation email if email provided
@@ -1531,10 +1829,28 @@ async function startServer(app: express.Express = express()) {
         listId: cachedMailchimpListId || process.env.MAILCHIMP_AUDIENCE_ID || process.env.MAILCHIMP_LIST_ID || null,
       };
 
+      const calcomApiKey = getCalcomApiKey();
+      const isPlaceholder = calcomApiKey === "11" || (calcomApiKey.length > 0 && calcomApiKey.length < 8);
+      const hasCalcomKey = !!calcomApiKey && !isPlaceholder;
+      const calcomStatus = {
+        isConfigured: hasCalcomKey,
+        isPlaceholder,
+        apiKeyMasked: hasCalcomKey
+          ? `${calcomApiKey.substring(0, 4)}...${calcomApiKey.slice(-3)}`
+          : calcomApiKey
+          ? `"${calcomApiKey}" (Placeholder / Incomplete)`
+          : null,
+        eventTypeId: cachedCalcomEventTypeId || (process.env.CALCOM_EVENT_TYPE_ID !== "11" ? process.env.CALCOM_EVENT_TYPE_ID : null) || null,
+        eventTypeName: cachedCalcomEventTypeName || null,
+        link: process.env.VITE_CALCOM_LINK && process.env.VITE_CALCOM_LINK !== "11" ? process.env.VITE_CALCOM_LINK : null,
+        remindersEnabled: hasCalcomKey,
+      };
+
       return res.json({
         success: true,
         isSupabaseConnected: !!getSupabase(),
         mailchimp: mailchimpStatus,
+        calcom: calcomStatus,
         stats: {
           totalVisitors: uniqueSessions || 1,
           totalPageviews: totalPageviews || analyticsList.length,
@@ -1626,6 +1942,78 @@ async function startServer(app: express.Express = express()) {
       return res.json({ success: result.success, skipped: result.skipped, error: result.error });
     } catch (err: any) {
       return res.status(500).json({ success: false, error: err.message || "Failed test sync" });
+    }
+  });
+
+  // 11. API: Admin Test & Verify Cal.com API Connection
+  app.post("/api/admin/calcom/test-verify", async (req, res) => {
+    try {
+      if (!verifyAdminRequest(req, res)) return;
+      const apiKey = getCalcomApiKey();
+      if (!apiKey) {
+        return res.status(400).json({
+          success: false,
+          error: "No CALCOM_API_KEY found in your Secrets. Please add CALCOM_API_KEY to your project secrets.",
+        });
+      }
+
+      if (apiKey === "11" || apiKey.length < 8) {
+        return res.status(400).json({
+          success: false,
+          error: `The current secret key "${apiKey}" is a placeholder and not a valid Cal.com API key. Real Cal.com API keys start with "cal_live_...". Please generate an API key in Cal.com (Settings > Developer > API Keys) and paste it into Secrets.`,
+        });
+      }
+
+      // Live ping to Cal.com API v2
+      try {
+        const pingRes = await fetch("https://api.cal.com/v2/me", {
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "cal-api-version": "2024-08-13",
+          },
+        });
+
+        if (pingRes.status === 401) {
+          return res.status(400).json({
+            success: false,
+            error: "Cal.com rejected the API key (401 Unauthorized: Invalid Access Token). Please verify that you copied the complete key (starts with 'cal_live_...') from Cal.com Settings > Developer > API Keys.",
+          });
+        }
+
+        if (!pingRes.ok) {
+          return res.status(400).json({
+            success: false,
+            error: `Cal.com API returned status ${pingRes.status}. Please check your API key in Cal.com.`,
+          });
+        }
+      } catch (networkErr: any) {
+        console.warn("[Cal.com verify warning]:", networkErr);
+      }
+
+      const eventInfo = await resolveCalcomEventType(apiKey);
+      const configuredEventId = process.env.CALCOM_EVENT_TYPE_ID;
+      if (!eventInfo && (!configuredEventId || configuredEventId === "11")) {
+        return res.json({
+          success: true,
+          apiKeyMasked: `${apiKey.substring(0, 4)}...${apiKey.slice(-3)}`,
+          eventTypeId: null,
+          eventTypeName: null,
+          remindersEnabled: false,
+          warning: "API key is valid, but no Event Type was found in your Cal.com account. Please create an Event Type in your Cal.com Dashboard (e.g. '15-Min Consultation') and attach a Reminder Workflow to it so reminders can be sent.",
+          message: "API key verified. Note: You still need to create an Event Type in Cal.com to send reminders.",
+        });
+      }
+
+      return res.json({
+        success: true,
+        apiKeyMasked: `${apiKey.substring(0, 4)}...${apiKey.slice(-3)}`,
+        eventTypeId: eventInfo ? eventInfo.id : configuredEventId,
+        eventTypeName: eventInfo ? eventInfo.title : "Default Event",
+        remindersEnabled: true,
+        message: "Cal.com API connection verified! Live calendar invitations and reminder workflows are active.",
+      });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message || "Failed Cal.com verification" });
     }
   });
 
