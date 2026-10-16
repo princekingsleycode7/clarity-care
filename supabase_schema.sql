@@ -77,20 +77,15 @@ ALTER TABLE public.leads ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.bookings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.analytics_events ENABLE ROW LEVEL SECURITY;
 
--- Anonymous Insert Policies (Client intakes & tracking)
+-- Anonymous Insert Policies (Client intakes & anonymous telemetry tracking)
 CREATE POLICY "Allow anon insert to productionbookings" ON public.productionbookings FOR INSERT TO anon, authenticated WITH CHECK (true);
 CREATE POLICY "Allow anon insert to leads" ON public.leads FOR INSERT TO anon, authenticated WITH CHECK (true);
 CREATE POLICY "Allow anon insert to bookings" ON public.bookings FOR INSERT TO anon, authenticated WITH CHECK (true);
 CREATE POLICY "Allow anon insert to analytics_events" ON public.analytics_events FOR INSERT TO anon, authenticated WITH CHECK (true);
 
--- Read & Manage Policies
-CREATE POLICY "Allow select on productionbookings" ON public.productionbookings FOR SELECT TO anon, authenticated USING (true);
-CREATE POLICY "Allow update on productionbookings" ON public.productionbookings FOR UPDATE TO anon, authenticated USING (true);
-
-CREATE POLICY "Allow select on leads" ON public.leads FOR SELECT TO anon, authenticated USING (true);
-CREATE POLICY "Allow update on leads" ON public.leads FOR UPDATE TO anon, authenticated USING (true);
-
-CREATE POLICY "Allow select on bookings" ON public.bookings FOR SELECT TO anon, authenticated USING (true);
-CREATE POLICY "Allow update on bookings" ON public.bookings FOR UPDATE TO anon, authenticated USING (true);
-
-CREATE POLICY "Allow select on analytics_events" ON public.analytics_events FOR SELECT TO anon, authenticated USING (true);
+-- Secure Service-Role Policies (Reads, updates, and deletes restricted to service_role)
+-- Anon users CANNOT read or update sensitive patient data, bookings, or leads.
+CREATE POLICY "Service role full access on productionbookings" ON public.productionbookings FOR ALL TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "Service role full access on leads" ON public.leads FOR ALL TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "Service role full access on bookings" ON public.bookings FOR ALL TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "Service role full access on analytics_events" ON public.analytics_events FOR ALL TO service_role USING (true) WITH CHECK (true);

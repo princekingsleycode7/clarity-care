@@ -14,9 +14,12 @@ import {
   Check, 
   ExternalLink,
   Download,
-  Loader2,
-  CalendarCheck2
+  Loader2, 
+  CalendarCheck2,
+  AlertCircle,
+  RefreshCw
 } from 'lucide-react';
+import { ManageBookingModal } from './ManageBookingModal';
 
 interface ConsultationOnboardingModalProps {
   isOpen: boolean;
@@ -33,6 +36,8 @@ export const ConsultationOnboardingModal: React.FC<ConsultationOnboardingModalPr
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [isLoadingSlots, setIsLoadingSlots] = useState<boolean>(false);
+  const [bookingError, setBookingError] = useState<string>('');
+  const [manageModalOpen, setManageModalOpen] = useState<boolean>(false);
 
   // Form & Booking Data
   const [formData, setFormData] = useState({
@@ -49,9 +54,7 @@ export const ConsultationOnboardingModal: React.FC<ConsultationOnboardingModalPr
 
   const [bookingReference, setBookingReference] = useState<string>('');
   const [calcomSent, setCalcomSent] = useState<boolean>(false);
-  const [availableSlots, setAvailableSlots] = useState<string[]>([
-    '10:00 AM', '11:00 AM', '12:00 PM', '01:00 PM', '02:00 PM', '03:00 PM', '04:00 PM', '05:00 PM', '06:00 PM'
-  ]);
+  const [availableSlots, setAvailableSlots] = useState<string[]>([]);
 
   // Generate upcoming 30 available dates (next 1 month, Monday to Sunday)
   const [dateOptions, setDateOptions] = useState<{ 
@@ -149,7 +152,13 @@ export const ConsultationOnboardingModal: React.FC<ConsultationOnboardingModalPr
   // Step 1 Submit -> Proceed to Date & Time
   const handleContactSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setBookingError('');
     if (!formData.name.trim() || !formData.phone.trim() || !formData.address.trim()) {
+      setBookingError('Please enter your full name, phone number, and address.');
+      return;
+    }
+    if (!formData.email.trim() || !formData.email.includes('@')) {
+      setBookingError('A valid email address is required so you receive your calendar invite and video link.');
       return;
     }
     setCurrentStep(2);
@@ -159,43 +168,49 @@ export const ConsultationOnboardingModal: React.FC<ConsultationOnboardingModalPr
   const handleFinalBooking = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setBookingError('');
 
     try {
       const res = await fetch('/api/cal/book', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: formData.name,
-          email: formData.email || `${formData.name.toLowerCase().replace(/\s+/g, '.')}@patient.cloverhearthaven.com`,
-          phone: formData.phone,
-          address: formData.address,
+          name: formData.name.trim(),
+          email: formData.email.trim(),
+          phone: formData.phone.trim(),
+          address: formData.address.trim(),
           selectedDate: formData.selectedDate,
           selectedTime: formData.selectedTime,
           timezone: formData.timezone,
+          notes: `Consultation Topic: ${formData.topic || 'Gain Clarity'}`,
         }),
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        setBookingReference(data.reference || `CHH-CAL-${Math.floor(100000 + Math.random() * 900000)}`);
-        if (data.calcomSent) {
-          setCalcomSent(true);
-        }
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok && data.success && data.reference) {
+        setBookingReference(data.reference);
+        setCalcomSent(Boolean(data.calcomSent));
+        setCurrentStep(3); // Proceed to confirmation only on verifiable success!
       } else {
-        setBookingReference(`CHH-CAL-${Math.floor(100000 + Math.random() * 900000)}`);
+        const errorMsg = data.error || 'Cal.com could not confirm this appointment slot. Please try selecting a different time.';
+        setBookingError(errorMsg);
+        // If slot taken, reload slots for the day
+        if (data.code === 'SLOT_TAKEN' && formData.selectedDateISO) {
+          fetchCalSlots(formData.selectedDateISO);
+        }
       }
-    } catch (err) {
-      console.warn('Booking network call completed with local fallback confirmation:', err);
-      setBookingReference(`CHH-CAL-${Math.floor(100000 + Math.random() * 900000)}`);
+    } catch (err: any) {
+      console.error('Booking network call failed:', err);
+      setBookingError('Network connection failed. Please verify your connection and try again.');
     } finally {
       setIsSubmitting(false);
-      setCurrentStep(3);
     }
   };
 
-  // Generate Google Calendar Link
+  // Generate Google Calendar Link for 15-minute Free Clarity Call
   const getGoogleCalendarUrl = () => {
-    const title = encodeURIComponent(`1-Hour Private Consultation — Clover Heart Haven`);
+    const title = encodeURIComponent('15-minute Free Clarity Call — Clover Heart Haven');
     const details = encodeURIComponent(
       `Clover Heart Haven Intake Consultation with Dr. Elena Vance, PsyD.\nPatient: ${formData.name}\nPhone: ${formData.phone}\nAddress: ${formData.address}\nBooking Reference: ${bookingReference}`
     );
@@ -210,7 +225,7 @@ export const ConsultationOnboardingModal: React.FC<ConsultationOnboardingModalPr
       'VERSION:2.0',
       'PRODID:-//Clover Heart Haven//Therapy Consultation//EN',
       'BEGIN:VEVENT',
-      `SUMMARY:Therapy Consultation - Clover Heart Haven`,
+      'SUMMARY:15-minute Free Clarity Call - Clover Heart Haven',
       `DESCRIPTION:Clover Heart Haven consultation.\\nBooking ID: ${bookingReference}\\nPatient: ${formData.name}\\nPhone: ${formData.phone}`,
       `LOCATION:${formData.address || 'San Francisco, CA'}`,
       'STATUS:CONFIRMED',
@@ -259,17 +274,24 @@ export const ConsultationOnboardingModal: React.FC<ConsultationOnboardingModalPr
         {/* Scrollable Modal Body */}
         <div className="p-5 sm:p-6 md:p-7 overflow-y-auto flex-1 space-y-5">
           
-          {/* STEP 1: CONTACT DETAILS (Name, Address, Phone, Email - NO GOOGLE) */}
+          {/* STEP 1: CONTACT DETAILS (Name, Address, Phone, Email - Required for Cal.com Invites) */}
           {currentStep === 1 && (
             <form onSubmit={handleContactSubmit} className="space-y-4">
               <div className="space-y-1.5">
                 <h3 className="text-xl sm:text-2xl font-bold text-[#1c2c19] tracking-tight font-['Plus_Jakarta_Sans']">
-                  Book Your Private Consultation
+                  15-minute Free Clarity Call
                 </h3>
                 <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-                  Enter your details below to schedule your 1-hour private session with Dr. Vance.
+                  Enter your contact details below to reserve your 15-minute private clarity consultation with Dr. Elena Vance.
                 </p>
               </div>
+
+              {bookingError && (
+                <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-2xl text-xs text-rose-800 flex items-start gap-2">
+                  <AlertCircle size={16} className="text-rose-600 shrink-0 mt-0.5" />
+                  <span>{bookingError}</span>
+                </div>
+              )}
 
               <div className="space-y-3.5 pt-1">
                 {/* Full Name */}
@@ -318,23 +340,25 @@ export const ConsultationOnboardingModal: React.FC<ConsultationOnboardingModalPr
                     <input 
                       type="tel"
                       required
-                      placeholder="e.g. (415) 555-0192"
+                      placeholder="e.g. +1 (415) 555-0192 or (415) 555-0192"
                       value={formData.phone}
                       onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                       className="w-full pl-10 pr-3.5 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm text-slate-800 bg-white focus:outline-[#1c2c19] focus:ring-1 focus:ring-[#1c2c19] transition-all"
                     />
                   </div>
+                  <p className="text-[10px] text-slate-500 mt-1">Used for Cal.com confirmation and SMS reminders.</p>
                 </div>
 
                 {/* Email Address */}
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Email Address <span className="text-slate-400 font-normal">(for calendar invite)</span>
+                    Email Address <span className="text-red-500">*</span> <span className="text-slate-400 font-normal">(for calendar invite & video link)</span>
                   </label>
                   <div className="relative">
                     <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input 
                       type="email"
+                      required
                       placeholder="e.g. sarah@example.com"
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -371,13 +395,23 @@ export const ConsultationOnboardingModal: React.FC<ConsultationOnboardingModalPr
                     Choose Date & Time
                   </h3>
                   <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-[#eef4ea] text-[#2c4724]">
-                    Cal.com Availability
+                    Cal.com Live Slots
                   </span>
                 </div>
                 <p className="text-xs text-slate-600">
-                  Select a slot for {formData.name || 'your consultation'}.
+                  Select a slot for {formData.name || 'your consultation'}. (15-Minute Free Clarity Call)
                 </p>
               </div>
+
+              {bookingError && (
+                <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-2xl text-xs text-rose-800 flex items-start gap-2">
+                  <AlertCircle size={16} className="text-rose-600 shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="font-semibold">{bookingError}</p>
+                    <p className="text-[11px] text-rose-600 mt-0.5">Please choose an alternate slot or day below.</p>
+                  </div>
+                </div>
+              )}
 
               {/* Date Selection Strip */}
               <div className="space-y-1.5">
@@ -422,32 +456,44 @@ export const ConsultationOnboardingModal: React.FC<ConsultationOnboardingModalPr
                     <span>Available Time ({formData.selectedDate})</span>
                   </label>
                   {isLoadingSlots && (
-                    <span className="text-[11px] text-[#3c5d35] flex items-center gap-1">
+                    <span className="text-[11px] text-[#3c5d35] flex items-center gap-1 font-semibold">
                       <Loader2 size={12} className="animate-spin" />
-                      Syncing...
+                      Syncing Cal.com...
                     </span>
                   )}
                 </div>
 
-                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                  {availableSlots.map((slot) => {
-                    const isSelected = formData.selectedTime === slot;
-                    return (
-                      <button
-                        key={slot}
-                        type="button"
-                        onClick={() => setFormData(prev => ({ ...prev, selectedTime: slot }))}
-                        className={`py-2 px-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer text-center ${
-                          isSelected
-                            ? 'bg-[#3c5d35] text-white border-[#3c5d35] shadow-sm scale-102'
-                            : 'bg-white text-slate-700 border-slate-200 hover:bg-[#f2f6ee]'
-                        }`}
-                      >
-                        {slot}
-                      </button>
-                    );
-                  })}
-                </div>
+                {isLoadingSlots ? (
+                  <div className="p-6 bg-slate-50 border border-slate-200 rounded-2xl text-center text-xs text-slate-500 flex items-center justify-center gap-2">
+                    <Loader2 size={16} className="animate-spin text-[#3c5d35]" />
+                    <span>Loading real-time availability from Cal.com...</span>
+                  </div>
+                ) : availableSlots.length === 0 ? (
+                  <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-900 text-center space-y-1">
+                    <p className="font-bold">No availability on this date</p>
+                    <p className="text-[11px] text-amber-700">All slots have been booked or the therapist is unavailable. Please choose another date above.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                    {availableSlots.map((slot) => {
+                      const isSelected = formData.selectedTime === slot;
+                      return (
+                        <button
+                          key={slot}
+                          type="button"
+                          onClick={() => setFormData(prev => ({ ...prev, selectedTime: slot }))}
+                          className={`py-2 px-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer text-center ${
+                            isSelected
+                              ? 'bg-[#3c5d35] text-white border-[#3c5d35] shadow-sm scale-102'
+                              : 'bg-white text-slate-700 border-slate-200 hover:bg-[#f2f6ee]'
+                          }`}
+                        >
+                          {slot}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               {/* Summary Card */}
@@ -455,6 +501,10 @@ export const ConsultationOnboardingModal: React.FC<ConsultationOnboardingModalPr
                 <div className="flex justify-between">
                   <span className="text-slate-500">Client:</span>
                   <span className="font-bold text-[#1c2c19]">{formData.name} • {formData.phone}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Service:</span>
+                  <span className="font-bold text-[#1c2c19]">15-minute Free Clarity Call</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500">Selected Time:</span>
@@ -466,7 +516,10 @@ export const ConsultationOnboardingModal: React.FC<ConsultationOnboardingModalPr
               <div className="flex items-center justify-between gap-3 pt-2">
                 <button
                   type="button"
-                  onClick={() => setCurrentStep(1)}
+                  onClick={() => {
+                    setBookingError('');
+                    setCurrentStep(1);
+                  }}
                   disabled={isSubmitting}
                   className="px-4 py-3 rounded-full text-xs font-bold text-slate-600 hover:text-slate-900 border border-slate-200 hover:bg-slate-50 flex items-center gap-1.5 transition-all cursor-pointer"
                 >
@@ -476,18 +529,18 @@ export const ConsultationOnboardingModal: React.FC<ConsultationOnboardingModalPr
 
                 <button
                   type="submit"
-                  disabled={isSubmitting}
-                  className="flex-1 bg-[#1c2c19] hover:bg-[#283f24] text-white py-3.5 px-6 rounded-full text-xs sm:text-sm font-bold tracking-wide transition-all shadow-lg flex items-center justify-center gap-2 cursor-pointer hover:scale-101 active:scale-99 disabled:opacity-75"
+                  disabled={isSubmitting || availableSlots.length === 0}
+                  className="flex-1 bg-[#1c2c19] hover:bg-[#283f24] text-white py-3.5 px-6 rounded-full text-xs sm:text-sm font-bold tracking-wide transition-all shadow-lg flex items-center justify-center gap-2 cursor-pointer hover:scale-101 active:scale-99 disabled:opacity-60"
                 >
                   {isSubmitting ? (
                     <>
                       <Loader2 size={16} className="animate-spin" />
-                      <span>Confirming Slot...</span>
+                      <span>Confirming with Cal.com...</span>
                     </>
                   ) : (
                     <>
                       <CalendarCheck2 size={16} />
-                      <span>Book Consultation Now</span>
+                      <span>Reserve Clarity Call</span>
                     </>
                   )}
                 </button>
@@ -510,7 +563,7 @@ export const ConsultationOnboardingModal: React.FC<ConsultationOnboardingModalPr
                   You're all set!
                 </h3>
                 <p className="text-xs sm:text-sm text-slate-600 max-w-sm mx-auto">
-                  Your 1-hour private session with Dr. Elena Vance is confirmed. A notification has been logged for your phone.
+                  Your 15-minute Free Clarity Call with Dr. Elena Vance is confirmed. A calendar invitation and reminder workflow have been scheduled.
                 </p>
               </div>
 
@@ -521,6 +574,10 @@ export const ConsultationOnboardingModal: React.FC<ConsultationOnboardingModalPr
                   <span className="font-mono font-bold text-[#1c2c19]">{bookingReference}</span>
                 </div>
                 <div className="flex justify-between">
+                  <span className="text-slate-500">Session Type:</span>
+                  <span className="font-bold text-[#1c2c19]">15-minute Free Clarity Call</span>
+                </div>
+                <div className="flex justify-between">
                   <span className="text-slate-500">Scheduled Date:</span>
                   <span className="font-bold text-[#1c2c19]">{formData.selectedDate}</span>
                 </div>
@@ -529,22 +586,22 @@ export const ConsultationOnboardingModal: React.FC<ConsultationOnboardingModalPr
                   <span className="font-bold text-[#1c2c19]">{formData.selectedTime}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-500">Phone:</span>
-                  <span className="font-bold text-[#1c2c19]">{formData.phone}</span>
+                  <span className="text-slate-500">Client:</span>
+                  <span className="font-bold text-[#1c2c19]">{formData.name} ({formData.phone})</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-500">Address:</span>
-                  <span className="font-bold text-[#1c2c19] truncate max-w-[200px]">{formData.address}</span>
+                  <span className="text-slate-500">Email:</span>
+                  <span className="font-bold text-[#1c2c19] truncate max-w-[200px]">{formData.email}</span>
                 </div>
                 <div className="flex justify-between pt-1 border-t border-[#d2dbc8]/60">
-                  <span className="text-slate-500">Cal.com Sync:</span>
+                  <span className="text-slate-500">Cal.com Status:</span>
                   <span className="font-bold text-[#3c5d35] flex items-center gap-1">
-                    <Check size={13} /> {calcomSent ? 'Created & Synced' : 'Ready'}
+                    <Check size={13} /> {calcomSent ? 'Created & Reminders Active' : 'Confirmed'}
                   </span>
                 </div>
                 <div className="pt-2 text-center bg-emerald-50 rounded-xl p-2.5 border border-emerald-100">
                   <p className="text-[11px] text-emerald-800 font-medium">
-                    Cal.com confirmation & reminder emails are scheduled for both you and your therapist.
+                    Cal.com automated reminders and calendar invite have been dispatched.
                   </p>
                 </div>
               </div>
@@ -555,12 +612,21 @@ export const ConsultationOnboardingModal: React.FC<ConsultationOnboardingModalPr
                   href={getGoogleCalendarUrl()}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-full sm:w-auto bg-[#1c2c19] text-white hover:bg-[#283f24] px-6 py-2.5 rounded-full text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer"
+                  className="w-full sm:w-auto bg-[#1c2c19] text-white hover:bg-[#283f24] px-5 py-2.5 rounded-full text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer"
                 >
                   <Calendar size={14} />
                   <span>Add to Google Calendar</span>
                   <ExternalLink size={12} />
                 </a>
+
+                <button
+                  type="button"
+                  onClick={() => setManageModalOpen(true)}
+                  className="w-full sm:w-auto bg-white border border-[#2c4724]/30 text-[#1c2c19] hover:bg-[#f0f4ec] px-5 py-2.5 rounded-full text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-xs"
+                >
+                  <RefreshCw size={13} />
+                  <span>Manage or Reschedule</span>
+                </button>
               </div>
 
               <div className="pt-2">
@@ -577,6 +643,13 @@ export const ConsultationOnboardingModal: React.FC<ConsultationOnboardingModalPr
 
         </div>
       </div>
+
+      {/* Embedded Client Manage/Reschedule/Cancel Modal */}
+      <ManageBookingModal
+        isOpen={manageModalOpen}
+        onClose={() => setManageModalOpen(false)}
+        initialReference={bookingReference}
+      />
     </div>
   );
 };

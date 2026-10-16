@@ -407,7 +407,7 @@ const memoryAnalytics: StoredAnalyticsEvent[] = [
   },
 ];
 
-// Helper: Insert into productionbookings table
+// Helper: Dual-write booking to Supabase (productionbookings & bookings)
 async function insertProductionBookingToSupabase(db: SupabaseClient, record: StoredProductionBooking) {
   const payload = {
     reference: record.reference,
@@ -423,24 +423,71 @@ async function insertProductionBookingToSupabase(db: SupabaseClient, record: Sto
     created_at: record.created_at,
   };
 
+  let prodSuccess = false;
+  let bookingsSuccess = false;
+
+  // 1. Write to productionbookings (and fallback production_bookings)
   try {
     const { error } = await db.from("productionbookings").insert(payload);
     if (!error) {
-      console.log("Inserted booking to Supabase productionbookings");
-      return { success: true, table: "productionbookings" };
-    }
-    console.warn("Attempt on productionbookings gave:", error.message);
-
-    // Graceful fallback if table was named with underscore
-    const { error: fbError } = await db.from("production_bookings").insert(payload);
-    if (!fbError) {
-      console.log("Inserted booking to Supabase production_bookings");
-      return { success: true, table: "production_bookings" };
+      console.log("[Supabase] Inserted booking to productionbookings");
+      prodSuccess = true;
+    } else {
+      console.warn("[Supabase] Attempt on productionbookings gave:", error.message);
+      const { error: fbError } = await db.from("production_bookings").insert(payload);
+      if (!fbError) {
+        console.log("[Supabase] Inserted booking to fallback production_bookings");
+        prodSuccess = true;
+      }
     }
   } catch (err) {
-    console.warn("Error inserting to productionbookings:", err);
+    console.warn("[Supabase] Error inserting to productionbookings:", err);
   }
-  return { success: false };
+
+  // 2. Dual-write to bookings table & ensure lead in leads table for backward compatibility
+  try {
+    let leadId: string | null = null;
+    if (record.email && record.email.includes("@")) {
+      const firstName = (record.name || "").trim().split(" ")[0] || "Client";
+      const { data: leadData } = await db.from("leads").upsert(
+        {
+          first_name: firstName,
+          email: record.email.trim(),
+          phone: record.phone || undefined,
+          utm_source: "clarity_call_intake",
+          created_at: record.created_at,
+        },
+        { onConflict: "email" }
+      ).select("id").maybeSingle();
+
+      if (leadData?.id) leadId = leadData.id;
+    }
+
+    const { error: bookError } = await db.from("bookings").insert({
+      lead_id: leadId,
+      email: record.email || null,
+      scheduled_at: record.selected_date,
+      time_slot: record.selected_time,
+      status: record.status || "confirmed",
+      created_at: record.created_at,
+    });
+
+    if (!bookError) {
+      console.log("[Supabase] Dual-write inserted to bookings table");
+      bookingsSuccess = true;
+    } else {
+      console.warn("[Supabase] Dual-write to bookings gave:", bookError.message);
+    }
+  } catch (bookErr) {
+    console.warn("[Supabase] Dual-write to bookings exception:", bookErr);
+  }
+
+  return { 
+    success: prodSuccess || bookingsSuccess, 
+    prodSuccess, 
+    bookingsSuccess, 
+    table: "dual_production_and_bookings" 
+  };
 }
 
 // Helper: Fetch productionbookings from Supabase
@@ -544,25 +591,60 @@ async function fetchLandingBookingsFromSupabase(db: SupabaseClient): Promise<Sto
   return null;
 }
 
-// Helper: Update production booking status
-async function updateProductionBookingInSupabase(db: SupabaseClient, id: string, status: string) {
+// Helper: Update booking status across both tables
+async function updateProductionBookingInSupabase(
+  db: SupabaseClient,
+  id: string,
+  status: string,
+  extra?: { newDate?: string; newTime?: string; reason?: string }
+) {
+  let prodUpdated = false;
+  let bookingsUpdated = false;
+
+  const updateFields: any = {
+    status,
+    updated_at: new Date().toISOString(),
+  };
+  if (extra?.newDate) updateFields.selected_date = extra.newDate;
+  if (extra?.newTime) updateFields.selected_time = extra.newTime;
+  if (extra?.reason) {
+    updateFields.notes = `Status: ${status} | Reason: ${extra.reason}`;
+  }
+
   try {
     const { error } = await db
       .from("productionbookings")
-      .update({ status, updated_at: new Date().toISOString() })
+      .update(updateFields)
       .or(`id.eq.${id},reference.eq.${id}`);
-    if (!error) return true;
-
-    // Fallback if needed
-    const { error: fbErr } = await db
-      .from("production_bookings")
-      .update({ status, updated_at: new Date().toISOString() })
-      .or(`id.eq.${id},reference.eq.${id}`);
-    if (!fbErr) return true;
+    if (!error) {
+      prodUpdated = true;
+    } else {
+      const { error: fbErr } = await db
+        .from("production_bookings")
+        .update(updateFields)
+        .or(`id.eq.${id},reference.eq.${id}`);
+      if (!fbErr) prodUpdated = true;
+    }
   } catch (e) {
     console.warn("Error updating productionbookings:", e);
   }
-  return false;
+
+  // Dual-update bookings table as well
+  try {
+    const landingUpdate: any = { status };
+    if (extra?.newDate) landingUpdate.scheduled_at = extra.newDate;
+    if (extra?.newTime) landingUpdate.time_slot = extra.newTime;
+
+    const { error } = await db
+      .from("bookings")
+      .update(landingUpdate)
+      .or(`id.eq.${id},email.eq.${id}`);
+    if (!error) bookingsUpdated = true;
+  } catch (e) {
+    console.warn("Error updating bookings:", e);
+  }
+
+  return prodUpdated || bookingsUpdated;
 }
 
 // Helper: Update landing page booking status
@@ -579,6 +661,146 @@ async function updateLandingBookingInSupabase(db: SupabaseClient, id: string, st
   return false;
 }
 
+// Helper: Cancel booking on Cal.com v2
+async function cancelCalcomBooking(
+  bookingUid: string,
+  cancellationReason?: string
+): Promise<{ success: boolean; error?: string; status?: string }> {
+  const apiKey = (process.env.CALCOM_API_KEY || "").replace(/^["']|["']$/g, "").trim();
+  if (!apiKey || apiKey === "11") {
+    return { success: false, error: "Cal.com API key not configured" };
+  }
+
+  try {
+    const url = `https://api.cal.com/v2/bookings/${encodeURIComponent(bookingUid)}/cancel`;
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "cal-api-version": "2024-08-13",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        cancellationReason: cancellationReason || "Requested by client",
+      }),
+    });
+
+    if (response.ok) {
+      const resJson: any = await response.json().catch(() => ({}));
+      console.log(`[Cal.com Cancel Success] Cancelled booking ${bookingUid}:`, resJson.status || "cancelled");
+      return { success: true, status: "cancelled" };
+    }
+
+    // Fallback attempt with cal-api-version: 2024-06-11
+    try {
+      const fbResponse = await fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "cal-api-version": "2024-06-11",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          cancellationReason: cancellationReason || "Requested by client",
+        }),
+      });
+      if (fbResponse.ok) {
+        return { success: true, status: "cancelled" };
+      }
+    } catch {}
+
+    const errText = await response.text();
+    console.warn(`[Cal.com Cancel Notice ${response.status}]:`, errText);
+    return { success: false, error: `Cal.com cancel failed (${response.status})` };
+  } catch (err: any) {
+    console.error("[Cal.com Cancel Exception]:", err);
+    return { success: false, error: err.message || "Failed to cancel Cal.com booking" };
+  }
+}
+
+// Helper: Reschedule booking on Cal.com v2
+async function rescheduleCalcomBooking(
+  bookingUid: string,
+  newStartIso: string,
+  reschedulingReason?: string
+): Promise<{ success: boolean; error?: string; status?: string; data?: any }> {
+  const apiKey = (process.env.CALCOM_API_KEY || "").replace(/^["']|["']$/g, "").trim();
+  if (!apiKey || apiKey === "11") {
+    return { success: false, error: "Cal.com API key not configured" };
+  }
+
+  try {
+    const url = `https://api.cal.com/v2/bookings/${encodeURIComponent(bookingUid)}/reschedule`;
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "cal-api-version": "2024-08-13",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        start: newStartIso,
+        reschedulingReason: reschedulingReason || "Requested by client",
+      }),
+    });
+
+    if (response.ok) {
+      const resJson: any = await response.json().catch(() => ({}));
+      console.log(`[Cal.com Reschedule Success] Rescheduled booking ${bookingUid} to ${newStartIso}`);
+      return { success: true, status: "rescheduled", data: resJson.data || resJson };
+    }
+
+    // Fallback attempt with 2024-06-11
+    try {
+      const fbResponse = await fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "cal-api-version": "2024-06-11",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          start: newStartIso,
+          reschedulingReason: reschedulingReason || "Requested by client",
+        }),
+      });
+      if (fbResponse.ok) {
+        const fbJson: any = await fbResponse.json().catch(() => ({}));
+        return { success: true, status: "rescheduled", data: fbJson.data || fbJson };
+      }
+    } catch {}
+
+    const errText = await response.text();
+    console.warn(`[Cal.com Reschedule Notice ${response.status}]:`, errText);
+    return { success: false, error: `Cal.com reschedule failed (${response.status})` };
+  } catch (err: any) {
+    console.error("[Cal.com Reschedule Exception]:", err);
+    return { success: false, error: err.message || "Failed to reschedule Cal.com booking" };
+  }
+}
+
+// Helper: Verify Cal.com webhook signature with CALCOM_WEBHOOK_SECRET
+function verifyCalcomWebhookSignature(req: any): boolean {
+  const secret = process.env.CALCOM_WEBHOOK_SECRET;
+  if (!secret || secret.trim() === "") {
+    // If webhook secret is not configured in env, allow with warning
+    return true;
+  }
+  const signature = req.headers["x-cal-signature-256"] || req.headers["cal-signature-256"];
+  if (!signature) {
+    console.warn("[Cal.com Webhook] Missing X-Cal-Signature-256 header when CALCOM_WEBHOOK_SECRET is active");
+    return false;
+  }
+  try {
+    const rawBody = req.rawBody ? req.rawBody.toString("utf8") : JSON.stringify(req.body);
+    const expectedSig = crypto.createHmac("sha256", secret.trim()).update(rawBody).digest("hex");
+    return crypto.timingSafeEqual(Buffer.from(String(signature), "hex"), Buffer.from(expectedSig, "hex"));
+  } catch (err) {
+    console.error("[Cal.com Webhook] Signature verification failed:", err);
+    return false;
+  }
+}
+
 async function startServer(app: express.Express = express()) {
   const PORT = Number(process.env.PORT) || 3000;
 
@@ -588,7 +810,7 @@ async function startServer(app: express.Express = express()) {
     res.header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
     res.header(
       "Access-Control-Allow-Headers",
-      "Origin, X-Requested-With, Content-Type, Accept, x-admin-password, Authorization"
+      "Origin, X-Requested-With, Content-Type, Accept, x-admin-password, Authorization, x-cal-signature-256"
     );
     if (req.method === "OPTIONS") {
       return res.sendStatus(204);
@@ -596,7 +818,14 @@ async function startServer(app: express.Express = express()) {
     next();
   });
 
-  app.use(express.json());
+  // Parse JSON and retain raw buffer for webhook signature validation
+  app.use(
+    express.json({
+      verify: (req: any, _res, buf) => {
+        req.rawBody = buf;
+      },
+    })
+  );
   app.use(express.urlencoded({ extended: true }));
 
   const formatYMD = (dateStr: string) => {
@@ -641,14 +870,58 @@ async function startServer(app: express.Express = express()) {
     return cleaned;
   };
 
-  let cachedCalcomEventTypeId: string | number | null = null;
+  // Helper: Normalize raw phone number string to valid international E.164 format for Cal.com
+  const normalizeE164Phone = (rawPhone?: string): string | undefined => {
+    if (!rawPhone) return undefined;
+    const trimmed = rawPhone.trim();
+    if (
+      !trimmed ||
+      /^(not provided|none|n\/a|na|no|null|undefined|pending intake)$/i.test(trimmed)
+    ) {
+      return undefined;
+    }
+    // If starts with '+', strip formatting characters (spaces, dashes, parentheses)
+    if (trimmed.startsWith("+")) {
+      const cleaned = "+" + trimmed.replace(/\D/g, "");
+      if (cleaned.length >= 8 && cleaned.length <= 16) {
+        return cleaned;
+      }
+    }
+    const digits = trimmed.replace(/\D/g, "");
+    if (!digits || digits.length < 7) {
+      return undefined;
+    }
+    // US / Canada standard 10 digits (e.g. 4155550192) -> +14155550192
+    if (digits.length === 10) {
+      return `+1${digits}`;
+    }
+    // 11 digits starting with 1 (e.g. 14155550192) -> +14155550192
+    if (digits.length === 11 && digits.startsWith("1")) {
+      return `+${digits}`;
+    }
+    // 11 digits starting with 0 (e.g. Nigeria 080... or UK 07...)
+    if (digits.length === 11 && digits.startsWith("0")) {
+      if (/^0[789][01]/.test(digits)) {
+        return `+234${digits.slice(1)}`;
+      }
+      if (digits.startsWith("07")) {
+        return `+44${digits.slice(1)}`;
+      }
+    }
+    if (digits.length >= 10 && digits.length <= 15) {
+      return `+${digits}`;
+    }
+    return undefined;
+  };
+
+  let cachedCalcomEventTypeId: number | null = null;
   let cachedCalcomEventTypeName: string | null = null;
 
-  // Helper: Dynamically discover or retrieve Cal.com event type ID
+  // Helper: Dynamically discover or retrieve Cal.com event type ID as a valid integer
   const resolveCalcomEventType = async (
     apiKey: string
-  ): Promise<{ id: string | number; title?: string } | null> => {
-    const envEventType = (
+  ): Promise<{ id: number; title: string; slug?: string } | null> => {
+    const rawEnvEventType = (
       process.env.CALCOM_EVENT_TYPE_ID ||
       process.env.CAL_EVENT_TYPE_ID ||
       ""
@@ -656,80 +929,86 @@ async function startServer(app: express.Express = express()) {
       .replace(/^["']|["']$/g, "")
       .trim();
 
-    if (envEventType && envEventType !== "11") {
-      return { id: envEventType, title: "Configured Event Type" };
-    }
-
-    if (cachedCalcomEventTypeId) {
+    // If already cached as a number, return it
+    if (typeof cachedCalcomEventTypeId === "number") {
       return {
         id: cachedCalcomEventTypeId,
         title: cachedCalcomEventTypeName || "Discovered Event",
       };
     }
 
+    // If an integer number was explicitly set in environment, use it
+    if (/^\d+$/.test(rawEnvEventType) && rawEnvEventType !== "11") {
+      const numId = parseInt(rawEnvEventType, 10);
+      cachedCalcomEventTypeId = numId;
+      cachedCalcomEventTypeName = "Configured Event Type";
+      return { id: numId, title: "Configured Event Type" };
+    }
+
     if (!apiKey) return null;
 
-    // Auto-discover event types from Cal.com account using API key
+    // Auto-discover event types from Cal.com account using API key v2
     try {
-      // 1. Try Cal.com v2 API: GET /v2/event-types
       const v2Res = await fetch("https://api.cal.com/v2/event-types", {
         headers: {
           Authorization: `Bearer ${apiKey}`,
-          "cal-api-version": "2024-08-13",
+          "cal-api-version": "2024-06-11",
           "Content-Type": "application/json",
         },
       });
 
       if (v2Res.ok) {
         const v2Data = await v2Res.json();
-        const eventTypesList =
-          v2Data?.data || v2Data?.event_types || (Array.isArray(v2Data) ? v2Data : []);
-        if (Array.isArray(eventTypesList) && eventTypesList.length > 0) {
-          const match =
-            eventTypesList.find((et: any) =>
-              /consult|session|clover|haven|call|clarity|15|60/i.test(
-                et.title || et.slug || ""
-              )
-            ) || eventTypesList[0];
-          cachedCalcomEventTypeId = match.id;
-          cachedCalcomEventTypeName =
-            match.title || match.slug || "General Consultation";
-          console.log(
-            `[Cal.com] Auto-discovered event type "${cachedCalcomEventTypeName}" (ID: ${cachedCalcomEventTypeId})`
-          );
-          return { id: cachedCalcomEventTypeId, title: cachedCalcomEventTypeName };
+        const eventTypesList: any[] = [];
+        if (v2Data?.data?.eventTypeGroups && Array.isArray(v2Data.data.eventTypeGroups)) {
+          for (const grp of v2Data.data.eventTypeGroups) {
+            if (Array.isArray(grp.eventTypes)) {
+              eventTypesList.push(...grp.eventTypes);
+            }
+          }
         }
-      }
+        if (Array.isArray(v2Data?.data)) {
+          eventTypesList.push(...v2Data.data);
+        }
 
-      // 2. Fallback to Cal.com v1 API: GET /v1/event-types
-      const v1Res = await fetch(
-        `https://api.cal.com/v1/event-types?apiKey=${encodeURIComponent(apiKey)}`
-      );
-      if (v1Res.ok) {
-        const v1Data = await v1Res.json();
-        const list = v1Data?.event_types || (Array.isArray(v1Data) ? v1Data : []);
-        if (Array.isArray(list) && list.length > 0) {
-          const match =
-            list.find((et: any) =>
-              /consult|session|clover|haven|call|clarity|15|60/i.test(
-                et.title || et.slug || ""
+        if (eventTypesList.length > 0) {
+          // If rawEnvEventType matches an event type's slug or id string
+          let match = rawEnvEventType
+            ? eventTypesList.find(
+                (et: any) =>
+                  String(et.id) === rawEnvEventType ||
+                  (et.slug && et.slug.toLowerCase() === rawEnvEventType.toLowerCase())
               )
-            ) || list[0];
-          cachedCalcomEventTypeId = match.id;
-          cachedCalcomEventTypeName =
-            match.title || match.slug || "General Consultation";
-          console.log(
-            `[Cal.com] Auto-discovered v1 event type "${cachedCalcomEventTypeName}" (ID: ${cachedCalcomEventTypeId})`
-          );
-          return { id: cachedCalcomEventTypeId, title: cachedCalcomEventTypeName };
+            : null;
+
+          // Otherwise look for Clarity / Consultation / Sanctuary meeting
+          if (!match) {
+            match =
+              eventTypesList.find((et: any) =>
+                /clarity|consult|haven|clover|session/i.test(
+                  et.title || et.slug || ""
+                )
+              ) || eventTypesList[0];
+          }
+
+          if (match && typeof match.id === "number") {
+            cachedCalcomEventTypeId = match.id;
+            cachedCalcomEventTypeName = match.title || match.slug || "Free Clarity Call";
+            console.log(
+              `[Cal.com] Successfully resolved event type "${cachedCalcomEventTypeName}" (ID: ${cachedCalcomEventTypeId})`
+            );
+            return {
+              id: cachedCalcomEventTypeId,
+              title: cachedCalcomEventTypeName,
+              slug: match.slug,
+            };
+          }
         }
+      } else {
+        console.warn(`[Cal.com] GET /v2/event-types returned status ${v2Res.status}`);
       }
     } catch (discoveryErr) {
       console.warn("[Cal.com] Event type auto-discovery notice:", discoveryErr);
-    }
-
-    if (envEventType) {
-      return { id: envEventType, title: "Default Event Type" };
     }
 
     return null;
@@ -813,28 +1092,68 @@ async function startServer(app: express.Express = express()) {
     const resolved = await resolveCalcomEventType(apiKey);
     const eventTypeId = resolved
       ? resolved.id
-      : process.env.CALCOM_EVENT_TYPE_ID || "11";
+      : (parseInt(process.env.CALCOM_EVENT_TYPE_ID || "", 10) || 7198199);
+
+    let v2ErrorMessage = "";
 
     // 1. Try Cal.com v2 Bookings API (Recommended official API - sends confirmation & reminder emails)
     try {
       console.log(
         `[Cal.com] Initiating v2 booking for ${email} at ${startIsoString} (Event Type: ${eventTypeId})...`
       );
-      const v2Res = await fetch("https://api.cal.com/v2/bookings", {
+      const cleanPhone = normalizeE164Phone(phone);
+      console.log(
+        `[Cal.com] Initiating v2 booking for ${email} at ${startIsoString} (Event Type: ${eventTypeId}, Clean Phone: ${cleanPhone || "None"})...`
+      );
+
+      const requestBody: any = {
+        start: startIsoString,
+        eventTypeId: Number(eventTypeId),
+        attendee: {
+          name: name || "Client",
+          email: email,
+          timeZone: timezone,
+          ...(cleanPhone ? { phoneNumber: cleanPhone } : {}),
+        },
+        metadata: {
+          notes: notes || "Client Consultation",
+          phone: phone || cleanPhone || "",
+          address: address || "",
+          source: "Clover Heart Haven Sanctuary",
+        },
+      };
+
+      let v2Res = await fetch("https://api.cal.com/v2/bookings", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${apiKey}`,
           "cal-api-version": "2024-08-13",
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
+        body: JSON.stringify(requestBody),
+      });
+
+      let v2Data = await v2Res.json().catch(() => ({}));
+
+      // If Cal.com rejected specifically because of phone number validation format, retry without phoneNumber
+      if (
+        !v2Res.ok &&
+        v2Res.status === 400 &&
+        (JSON.stringify(v2Data).includes("invalid_number") ||
+          JSON.stringify(v2Data).includes("phoneNumber") ||
+          JSON.stringify(v2Data).includes("smsReminderNumber") ||
+          JSON.stringify(v2Data).includes("responses"))
+      ) {
+        console.warn(
+          "[Cal.com Phone Notice] Cal.com rejected phone format. Retrying booking with email only so client appointment is preserved..."
+        );
+        const fallbackRequestBody = {
           start: startIsoString,
-          eventTypeId: Number(eventTypeId) || eventTypeId,
+          eventTypeId: Number(eventTypeId),
           attendee: {
             name: name || "Client",
             email: email,
             timeZone: timezone,
-            phoneNumber: phone || undefined,
           },
           metadata: {
             notes: notes || "Client Consultation",
@@ -842,10 +1161,24 @@ async function startServer(app: express.Express = express()) {
             address: address || "",
             source: "Clover Heart Haven Sanctuary",
           },
-        }),
-      });
+        };
 
-      const v2Data = await v2Res.json().catch(() => ({}));
+        const retryRes = await fetch("https://api.cal.com/v2/bookings", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "cal-api-version": "2024-08-13",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(fallbackRequestBody),
+        });
+
+        if (retryRes.ok) {
+          v2Res = retryRes;
+          v2Data = await retryRes.json().catch(() => ({}));
+          console.log("[Cal.com] Retry without phone number succeeded!");
+        }
+      }
 
       if (v2Res.ok) {
         const bookingId =
@@ -863,77 +1196,27 @@ async function startServer(app: express.Express = express()) {
           calcomSent: true,
         };
       } else {
+        v2ErrorMessage =
+          v2Data?.error?.message ||
+          v2Data?.message ||
+          (typeof v2Data?.error === "string" ? v2Data.error : "") ||
+          `Cal.com rejected booking (Status ${v2Res.status})`;
         console.warn(
           `[Cal.com v2 Notice] Response status ${v2Res.status}:`,
           JSON.stringify(v2Data)
         );
       }
-    } catch (v2Err) {
+    } catch (v2Err: any) {
+      v2ErrorMessage = v2Err?.message || "Cal.com network error";
       console.warn("[Cal.com v2 Network Warning]:", v2Err);
     }
 
-    // 2. Fallback to Cal.com v1 Bookings API
-    try {
-      console.log(`[Cal.com] Trying v1 booking fallback for ${email}...`);
-      const v1Res = await fetch(
-        `https://api.cal.com/v1/bookings?apiKey=${encodeURIComponent(apiKey)}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            eventTypeId: Number(eventTypeId) || eventTypeId,
-            start: startIsoString,
-            name: name || "Client",
-            email: email,
-            timeZone: timezone,
-            metadata: { phone, address, notes },
-            responses: {
-              name: name || "Client",
-              email: email,
-              location: {
-                value: "inPerson",
-                optionValue: address || "Virtual Clinic",
-              },
-            },
-          }),
-        }
-      );
-
-      const v1Data = await v1Res.json().catch(() => ({}));
-
-      if (v1Res.ok) {
-        const bookingId =
-          v1Data?.booking?.uid || v1Data?.booking?.id || fallbackRef;
-        console.log(
-          `[Cal.com Success] Booking created via v1 API! ID: ${bookingId}. Cal.com notifications scheduled.`
-        );
-        return {
-          success: true,
-          reference: String(bookingId),
-          calData: v1Data,
-          calcomSent: true,
-        };
-      } else {
-        console.warn(
-          `[Cal.com v1 Notice] Response status ${v1Res.status}:`,
-          JSON.stringify(v1Data)
-        );
-        return {
-          success: false,
-          reference: fallbackRef,
-          calcomSent: false,
-          error: v1Data?.message || `Cal.com error (${v1Res.status})`,
-        };
-      }
-    } catch (v1Err: any) {
-      console.warn("[Cal.com v1 Network Warning]:", v1Err);
-      return {
-        success: false,
-        reference: fallbackRef,
-        calcomSent: false,
-        error: v1Err.message || "Cal.com network error",
-      };
-    }
+    return {
+      success: false,
+      reference: fallbackRef,
+      calcomSent: false,
+      error: v2ErrorMessage || "Cal.com booking creation failed",
+    };
   };
 
   // 1. API: Get Cal.com Available Slots
@@ -954,24 +1237,25 @@ async function startServer(app: express.Express = express()) {
           const startOfDay = `${ymd}T00:00:00.000Z`;
           const endOfDay = `${ymd}T23:59:59.999Z`;
 
-          const v1Url = `https://api.cal.com/v1/slots?apiKey=${encodeURIComponent(
-            apiKey
-          )}&eventTypeId=${encodeURIComponent(
-            String(eventTypeId)
-          )}&startTime=${encodeURIComponent(
+          // Call Cal.com API v2 slots endpoint
+          const v2SlotsUrl = `https://api.cal.com/v2/slots/available?startTime=${encodeURIComponent(
             startOfDay
-          )}&endTime=${encodeURIComponent(endOfDay)}&timeZone=${encodeURIComponent(
-            timezone
+          )}&endTime=${encodeURIComponent(endOfDay)}&eventTypeId=${encodeURIComponent(
+            String(eventTypeId)
           )}`;
 
-          const calRes = await fetch(v1Url, {
-            headers: { "Content-Type": "application/json" },
+          const calRes = await fetch(v2SlotsUrl, {
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+              "cal-api-version": "2024-06-11",
+              "Content-Type": "application/json",
+            },
           });
 
           if (calRes.ok) {
             const data = await calRes.json();
-            const slotsObj = data.slots || data;
-            const daySlots = slotsObj[ymd] || [];
+            const slotsMap = data?.data?.slots || data?.slots || {};
+            const daySlots = slotsMap[ymd] || [];
 
             if (Array.isArray(daySlots) && daySlots.length > 0) {
               const formattedSlots = daySlots.map(
@@ -984,6 +1268,7 @@ async function startServer(app: express.Express = express()) {
                         hour: "2-digit",
                         minute: "2-digit",
                         hour12: true,
+                        timeZone: timezone,
                       });
                 }
               );
@@ -993,10 +1278,17 @@ async function startServer(app: express.Express = express()) {
                 date: ymd,
                 slots: formattedSlots,
               });
+            } else if (Array.isArray(daySlots) && daySlots.length === 0) {
+              return res.json({
+                success: true,
+                source: "calcom_api",
+                date: ymd,
+                slots: [],
+              });
             }
           }
         } catch (apiErr) {
-          console.warn("Cal.com API slots fetch warning:", apiErr);
+          console.warn("Cal.com API v2 slots fetch warning:", apiErr);
         }
       }
 
@@ -1042,7 +1334,7 @@ async function startServer(app: express.Express = express()) {
     });
   });
 
-  // 2. API: Clover Heart Haven Direct Consultation Booking (Table: productionbookings)
+  // 2. API: Clover Heart Haven Direct Consultation Booking (Dual-Write to Supabase & Live Cal.com)
   app.post("/api/cal/book", async (req, res) => {
     try {
       const {
@@ -1052,43 +1344,80 @@ async function startServer(app: express.Express = express()) {
         address,
         selectedDate,
         selectedTime,
+        startIso,
         timezone = "America/Los_Angeles",
         notes = "",
       } = req.body;
 
-      if (!name || !phone || !address) {
+      if (!name || !name.trim()) {
         return res.status(400).json({
           success: false,
-          error: "Full name, address, and phone number are required.",
+          error: "Full name is required.",
+          code: "VALIDATION_ERROR",
         });
       }
 
-      // Execute real Cal.com booking so Cal.com triggers notifications & reminders to both parties
+      if (!email || !email.includes("@")) {
+        return res.status(400).json({
+          success: false,
+          error: "A valid email address is required so you receive your calendar invite and video link.",
+          code: "VALIDATION_ERROR",
+        });
+      }
+
+      const rawPhone = (phone && typeof phone === "string") ? phone.trim() : "";
+      const isPlaceholderPhone = /^(not provided|none|n\/a|na|no|null|undefined)$/i.test(rawPhone);
+      const phoneForCalcom = isPlaceholderPhone ? "" : rawPhone;
+      const storedPhone = (rawPhone && !isPlaceholderPhone) ? rawPhone : "Not provided";
+
+      const apiKey = getCalcomApiKey();
+
+      // Execute genuine Cal.com booking
       const calResult = await createCalcomBooking({
-        name,
-        email: email || "consultation@cloverhearthaven.com",
-        phone,
-        address,
+        name: name.trim(),
+        email: email.trim(),
+        phone: phoneForCalcom,
+        address: address ? address.trim() : "Telehealth Sanctuary",
         selectedDate,
         selectedTime,
+        startIso,
         timezone,
-        notes,
+        notes: notes || "15-minute Free Clarity Call",
       });
+
+      // Strict integrity check: If Cal.com API is active and rejected the booking, fail visibly
+      if (!calResult.success && apiKey && apiKey !== "11") {
+        const isConflict =
+          calResult.error &&
+          (calResult.error.toLowerCase().includes("taken") ||
+            calResult.error.toLowerCase().includes("conflict") ||
+            calResult.error.toLowerCase().includes("busy"));
+
+        return res.status(isConflict ? 409 : 400).json({
+          success: false,
+          error:
+            calResult.error ||
+            "Cal.com could not confirm this appointment slot. Please choose another time.",
+          code: isConflict ? "SLOT_TAKEN" : "CALCOM_REJECTED",
+        });
+      }
 
       const finalReference = calResult.reference;
 
       const bookingRecord: StoredProductionBooking = {
         id: `prod_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
         reference: finalReference,
-        name,
-        phone,
-        address,
-        email: email || "",
+        name: name.trim(),
+        phone: storedPhone,
+        address: address ? address.trim() : "Telehealth Sanctuary",
+        email: email.trim(),
         selected_date: selectedDate || "Upcoming Session",
         selected_time: selectedTime || "10:00 AM",
         timezone,
         status: "confirmed",
-        notes: notes ? `${notes} | Cal.com Synced: ${calResult.calcomSent}` : `Cal.com Synced: ${calResult.calcomSent}`,
+        notes: notes
+          ? `${notes} | Cal.com UID: ${finalReference} | Synced: ${calResult.calcomSent}`
+          : `Cal.com UID: ${finalReference} | Synced: ${calResult.calcomSent}`,
         created_at: new Date().toISOString(),
       };
 
@@ -1099,41 +1428,369 @@ async function startServer(app: express.Express = express()) {
       if (db) {
         const result = await insertProductionBookingToSupabase(db, bookingRecord);
         savedToSupabase = result.success;
+        if (!savedToSupabase) {
+          console.error(
+            `[SUPABASE WARNING] Cal.com confirmed booking ${finalReference}, but Supabase dual-write failed!`
+          );
+        }
       }
 
       if (email && email.includes("@")) {
         syncLeadToMailchimp({
-          email,
-          firstName: name ? name.split(" ")[0] : "Patient",
+          email: email.trim(),
+          firstName: name.trim().split(" ")[0] || "Patient",
           lastName:
-            name && name.split(" ").length > 1
-              ? name.split(" ").slice(1).join(" ")
+            name.trim().split(" ").length > 1
+              ? name.trim().split(" ").slice(1).join(" ")
               : "",
-          source: "clover_clinic_intake",
-          tags: ["Clover Heart Haven", "Clinic Intake", "Booked Client"],
+          source: "clover_clarity_intake",
+          tags: ["Clover Heart Haven", "Clarity Call", "Booked Client"],
         }).catch((e) => console.warn("Mailchimp booking sync warning:", e));
       }
 
       return res.json({
         success: true,
         reference: finalReference,
+        calBookingUid: finalReference,
         calcomSent: calResult.calcomSent,
         meetingUrl: calResult.meetingUrl,
-        calcomError: calResult.error,
-        savedToSupabase,
-        name,
-        email,
-        phone,
-        address,
+        persisted: savedToSupabase,
+        name: name.trim(),
+        email: email.trim(),
+        phone: phone.trim(),
         selectedDate,
         selectedTime,
       });
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error in /api/cal/book:", err);
       return res.status(500).json({
         success: false,
-        error: "Failed to process appointment booking.",
+        error: err.message || "Failed to process appointment booking.",
       });
+    }
+  });
+
+  // API: Cancel Booking (via Cal.com & Dual-Write to Supabase)
+  app.post("/api/cal/cancel", async (req, res) => {
+    try {
+      const { bookingUid, reference, id, reason = "Client requested cancellation" } = req.body;
+      const targetUid = (bookingUid || reference || id || "").trim();
+
+      if (!targetUid) {
+        return res.status(400).json({
+          success: false,
+          error: "Booking reference or UID is required to cancel an appointment.",
+        });
+      }
+
+      console.log(`[Cancel Action] Cancelling booking ${targetUid} (Reason: ${reason})`);
+
+      // 1. Cancel on Cal.com
+      const calCancelResult = await cancelCalcomBooking(targetUid, reason);
+
+      // 2. Update status in memory
+      const memBooking = memoryProductionBookings.find(
+        (b) => b.reference === targetUid || b.id === targetUid
+      );
+      if (memBooking) {
+        memBooking.status = "cancelled";
+        memBooking.notes = memBooking.notes ? `${memBooking.notes} | Cancelled: ${reason}` : `Cancelled: ${reason}`;
+      }
+
+      // 3. Update status in Supabase (both tables)
+      const db = getSupabase();
+      let dbUpdated = false;
+      if (db) {
+        dbUpdated = await updateProductionBookingInSupabase(db, targetUid, "cancelled", { reason });
+      }
+
+      return res.json({
+        success: true,
+        status: "cancelled",
+        bookingUid: targetUid,
+        calcomCancelled: calCancelResult.success,
+        calcomError: calCancelResult.error,
+        persisted: dbUpdated,
+        message: "Your appointment has been cancelled successfully.",
+      });
+    } catch (err: any) {
+      console.error("Error in /api/cal/cancel:", err);
+      return res.status(500).json({
+        success: false,
+        error: err.message || "Failed to cancel appointment.",
+      });
+    }
+  });
+
+  // API: Reschedule Booking (via Cal.com & Dual-Write to Supabase)
+  app.post("/api/cal/reschedule", async (req, res) => {
+    try {
+      const {
+        bookingUid,
+        reference,
+        id,
+        newStartIso,
+        newDate,
+        newTime,
+        reason = "Client requested reschedule",
+      } = req.body;
+
+      const targetUid = (bookingUid || reference || id || "").trim();
+
+      if (!targetUid) {
+        return res.status(400).json({
+          success: false,
+          error: "Booking reference or UID is required to reschedule.",
+        });
+      }
+
+      if (!newStartIso && (!newDate || !newTime)) {
+        return res.status(400).json({
+          success: false,
+          error: "A new appointment date and time are required for rescheduling.",
+        });
+      }
+
+      let finalStartIso = newStartIso;
+      if (!finalStartIso && newDate && newTime) {
+        try {
+          const match = newTime.match(/^(\d+):(\d+)\s*(AM|PM)$/i);
+          let hours = 10;
+          let minutes = 0;
+          if (match) {
+            hours = parseInt(match[1], 10);
+            minutes = parseInt(match[2], 10);
+            const ampm = match[3].toUpperCase();
+            if (ampm === "PM" && hours < 12) hours += 12;
+            if (ampm === "AM" && hours === 12) hours = 0;
+          }
+          finalStartIso = `${formatYMD(newDate)}T${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00.000Z`;
+        } catch {
+          finalStartIso = new Date().toISOString();
+        }
+      }
+
+      console.log(`[Reschedule Action] Rescheduling booking ${targetUid} to ${finalStartIso}`);
+
+      // 1. Reschedule on Cal.com
+      const calRescheduleResult = await rescheduleCalcomBooking(targetUid, finalStartIso, reason);
+
+      // 2. Update memory store
+      const memBooking = memoryProductionBookings.find(
+        (b) => b.reference === targetUid || b.id === targetUid
+      );
+      if (memBooking) {
+        memBooking.status = "rescheduled" as any;
+        if (newDate) memBooking.selected_date = newDate;
+        if (newTime) memBooking.selected_time = newTime;
+        memBooking.notes = memBooking.notes ? `${memBooking.notes} | Rescheduled: ${reason}` : `Rescheduled: ${reason}`;
+      }
+
+      // 3. Update Supabase (both tables)
+      const db = getSupabase();
+      let dbUpdated = false;
+      if (db) {
+        dbUpdated = await updateProductionBookingInSupabase(
+          db,
+          targetUid,
+          "rescheduled",
+          { newDate, newTime, reason }
+        );
+      }
+
+      return res.json({
+        success: true,
+        status: "rescheduled",
+        bookingUid: targetUid,
+        newStartIso: finalStartIso,
+        newDate,
+        newTime,
+        calcomRescheduled: calRescheduleResult.success,
+        calcomError: calRescheduleResult.error,
+        persisted: dbUpdated,
+        message: "Your appointment has been rescheduled successfully.",
+      });
+    } catch (err: any) {
+      console.error("Error in /api/cal/reschedule:", err);
+      return res.status(500).json({
+        success: false,
+        error: err.message || "Failed to reschedule appointment.",
+      });
+    }
+  });
+
+  // API: Cal.com Webhook Ingestion (Real-time updates from Cal.com)
+  app.post("/api/cal/webhook", async (req, res) => {
+    try {
+      if (!verifyCalcomWebhookSignature(req)) {
+        console.warn("[Cal.com Webhook] Rejecting unsigned / invalid webhook payload (401)");
+        return res.status(401).json({ success: false, error: "Invalid webhook signature" });
+      }
+
+      const rawEvent = (req.body.triggerEvent || req.body.event || req.body.type || "").toString();
+      const triggerEvent = rawEvent.toUpperCase();
+      const payload = req.body.payload || req.body.data || req.body;
+      const bookingUid = payload?.uid || payload?.bookingUid || payload?.id || req.body.uid;
+
+      console.log(`[Cal.com Webhook] Received ${triggerEvent} for UID: ${bookingUid}`);
+
+      const db = getSupabase();
+
+      if (triggerEvent.includes("CANCEL")) {
+        const reason = payload?.cancellationReason || "Cancelled via Cal.com";
+        const mem = memoryProductionBookings.find((b) => b.reference === bookingUid || b.id === bookingUid);
+        if (mem) {
+          mem.status = "cancelled";
+          mem.notes = mem.notes ? `${mem.notes} | Webhook Cancelled: ${reason}` : `Webhook Cancelled: ${reason}`;
+        }
+        if (db && bookingUid) {
+          await updateProductionBookingInSupabase(db, String(bookingUid), "cancelled", { reason });
+        }
+      } else if (triggerEvent.includes("RESCHEDULE")) {
+        const startTime = payload?.startTime || payload?.start;
+        const reason = payload?.rescheduleReason || "Rescheduled via Cal.com";
+        let newDateStr = "";
+        let newTimeStr = "";
+        if (startTime) {
+          const d = new Date(startTime);
+          if (!isNaN(d.getTime())) {
+            newDateStr = d.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+            newTimeStr = d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
+          }
+        }
+        const mem = memoryProductionBookings.find((b) => b.reference === bookingUid || b.id === bookingUid);
+        if (mem) {
+          mem.status = "rescheduled" as any;
+          if (newDateStr) mem.selected_date = newDateStr;
+          if (newTimeStr) mem.selected_time = newTimeStr;
+        }
+        if (db && bookingUid) {
+          await updateProductionBookingInSupabase(db, String(bookingUid), "rescheduled", {
+            newDate: newDateStr || undefined,
+            newTime: newTimeStr || undefined,
+            reason,
+          });
+        }
+      } else if (triggerEvent.includes("CREATED") || triggerEvent.includes("BOOKING_REQUESTED")) {
+        const attendee = Array.isArray(payload?.attendees) && payload.attendees.length > 0
+          ? payload.attendees[0]
+          : payload?.attendee || {};
+        const clientName = attendee.name || payload?.name || "Client";
+        const clientEmail = attendee.email || payload?.email || "";
+        const clientPhone = attendee.phoneNumber || payload?.phone || "";
+        const startTime = payload?.startTime || payload?.start;
+
+        let dateFormatted = "Upcoming Session";
+        let timeFormatted = "10:00 AM";
+        if (startTime) {
+          const d = new Date(startTime);
+          if (!isNaN(d.getTime())) {
+            dateFormatted = d.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+            timeFormatted = d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
+          }
+        }
+
+        const newRecord: StoredProductionBooking = {
+          id: `webhook_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+          reference: String(bookingUid || `CAL-${Date.now()}`),
+          name: clientName,
+          email: clientEmail,
+          phone: clientPhone,
+          address: "Telehealth Sanctuary",
+          selected_date: dateFormatted,
+          selected_time: timeFormatted,
+          timezone: attendee.timeZone || "America/Los_Angeles",
+          status: "confirmed",
+          notes: "Created via Cal.com Webhook",
+          created_at: new Date().toISOString(),
+        };
+
+        const existingIdx = memoryProductionBookings.findIndex(
+          (b) => b.reference === newRecord.reference
+        );
+        if (existingIdx >= 0) {
+          memoryProductionBookings[existingIdx].status = "confirmed";
+        } else {
+          memoryProductionBookings.unshift(newRecord);
+        }
+
+        if (db) {
+          await insertProductionBookingToSupabase(db, newRecord);
+        }
+      }
+
+      return res.json({
+        success: true,
+        acknowledged: true,
+        triggerEvent,
+        bookingUid,
+      });
+    } catch (err: any) {
+      console.error("[Cal.com Webhook Exception]:", err);
+      return res.status(500).json({ success: false, error: err.message || "Failed to process webhook" });
+    }
+  });
+
+  // API: Get Booking by UID or Reference (for client & admin lookup)
+  app.get("/api/cal/booking/:uid", async (req, res) => {
+    try {
+      const { uid } = req.params;
+      if (!uid) {
+        return res.status(400).json({ success: false, error: "Missing booking UID" });
+      }
+
+      let booking: any = memoryProductionBookings.find(
+        (b) => b.reference.toLowerCase() === uid.toLowerCase() || b.id.toLowerCase() === uid.toLowerCase()
+      );
+
+      if (!booking) {
+        const db = getSupabase();
+        if (db) {
+          const { data } = await db
+            .from("productionbookings")
+            .select("*")
+            .or(`reference.eq.${uid},id.eq.${uid}`)
+            .maybeSingle();
+          if (data) booking = data;
+        }
+      }
+
+      if (!booking) {
+        const apiKey = getCalcomApiKey();
+        if (apiKey && apiKey !== "11") {
+          try {
+            const calRes = await fetch(`https://api.cal.com/v2/bookings/${encodeURIComponent(uid)}`, {
+              headers: {
+                Authorization: `Bearer ${apiKey}`,
+                "cal-api-version": "2024-08-13",
+              },
+            });
+            if (calRes.ok) {
+              const calData: any = await calRes.json();
+              const b = calData.data || calData;
+              booking = {
+                id: b.id || b.uid,
+                reference: b.uid || uid,
+                name: b.attendee?.name || (b.attendees?.[0]?.name) || "Client",
+                email: b.attendee?.email || (b.attendees?.[0]?.email) || "",
+                phone: b.attendee?.phoneNumber || "",
+                selected_date: b.start ? new Date(b.start).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" }) : "Upcoming Session",
+                selected_time: b.start ? new Date(b.start).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true }) : "10:00 AM",
+                status: b.status || "confirmed",
+                notes: b.description || "",
+              };
+            }
+          } catch {}
+        }
+      }
+
+      if (!booking) {
+        return res.status(404).json({ success: false, error: "Booking not found" });
+      }
+
+      return res.json({ success: true, booking });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message || "Failed to look up booking" });
     }
   });
 
@@ -2017,9 +2674,125 @@ async function startServer(app: express.Express = express()) {
     }
   });
 
-  // Health check endpoint
-  app.get("/api/health", (req, res) => {
-    res.json({ status: "ok", timestamp: new Date().toISOString(), supabaseConnected: !!getSupabase() });
+  // Admin: Cancel Booking on Cal.com & Dual-Write to Supabase
+  app.post("/api/admin/bookings/:id/cancel", async (req, res) => {
+    try {
+      if (!verifyAdminRequest(req, res)) return;
+      const { id } = req.params;
+      const { reason = "Cancelled by practice administrator" } = req.body;
+
+      const calCancelResult = await cancelCalcomBooking(id, reason);
+
+      const memBooking = memoryProductionBookings.find(
+        (b) => b.id === id || b.reference === id
+      );
+      if (memBooking) {
+        memBooking.status = "cancelled";
+        memBooking.notes = memBooking.notes ? `${memBooking.notes} | Admin Cancel: ${reason}` : `Admin Cancel: ${reason}`;
+      }
+
+      const db = getSupabase();
+      let dbUpdated = false;
+      if (db) {
+        dbUpdated = await updateProductionBookingInSupabase(db, id, "cancelled", { reason });
+      }
+
+      return res.json({
+        success: true,
+        status: "cancelled",
+        bookingUid: id,
+        calcomCancelled: calCancelResult.success,
+        calcomError: calCancelResult.error,
+        persisted: dbUpdated,
+        message: "Booking cancelled successfully.",
+      });
+    } catch (err: any) {
+      console.error("Error in admin cancel booking:", err);
+      return res.status(500).json({ success: false, error: err.message || "Failed to cancel booking" });
+    }
+  });
+
+  // Admin: Reschedule Booking on Cal.com & Dual-Write to Supabase
+  app.post("/api/admin/bookings/:id/reschedule", async (req, res) => {
+    try {
+      if (!verifyAdminRequest(req, res)) return;
+      const { id } = req.params;
+      const { newStartIso, newDate, newTime, reason = "Rescheduled by practice administrator" } = req.body;
+
+      if (!newStartIso && (!newDate || !newTime)) {
+        return res.status(400).json({ success: false, error: "New appointment date and time are required." });
+      }
+
+      let finalStartIso = newStartIso;
+      if (!finalStartIso && newDate && newTime) {
+        try {
+          const match = newTime.match(/^(\d+):(\d+)\s*(AM|PM)$/i);
+          let hours = 10;
+          let minutes = 0;
+          if (match) {
+            hours = parseInt(match[1], 10);
+            minutes = parseInt(match[2], 10);
+            const ampm = match[3].toUpperCase();
+            if (ampm === "PM" && hours < 12) hours += 12;
+            if (ampm === "AM" && hours === 12) hours = 0;
+          }
+          finalStartIso = `${formatYMD(newDate)}T${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00.000Z`;
+        } catch {
+          finalStartIso = new Date().toISOString();
+        }
+      }
+
+      const calRescheduleResult = await rescheduleCalcomBooking(id, finalStartIso, reason);
+
+      const memBooking = memoryProductionBookings.find(
+        (b) => b.id === id || b.reference === id
+      );
+      if (memBooking) {
+        memBooking.status = "rescheduled" as any;
+        if (newDate) memBooking.selected_date = newDate;
+        if (newTime) memBooking.selected_time = newTime;
+        memBooking.notes = memBooking.notes ? `${memBooking.notes} | Admin Rescheduled: ${reason}` : `Admin Rescheduled: ${reason}`;
+      }
+
+      const db = getSupabase();
+      let dbUpdated = false;
+      if (db) {
+        dbUpdated = await updateProductionBookingInSupabase(
+          db,
+          id,
+          "rescheduled",
+          { newDate, newTime, reason }
+        );
+      }
+
+      return res.json({
+        success: true,
+        status: "rescheduled",
+        bookingUid: id,
+        newStartIso: finalStartIso,
+        calcomRescheduled: calRescheduleResult.success,
+        calcomError: calRescheduleResult.error,
+        persisted: dbUpdated,
+        message: "Booking rescheduled successfully.",
+      });
+    } catch (err: any) {
+      console.error("Error in admin reschedule booking:", err);
+      return res.status(500).json({ success: false, error: err.message || "Failed to reschedule booking" });
+    }
+  });
+
+  // Health check endpoint for Render deployment & uptime monitoring
+  app.get("/api/health", (_req, res) => {
+    const apiKey = getCalcomApiKey();
+    res.json({
+      status: "healthy",
+      service: "clover-heart-haven",
+      environment: process.env.NODE_ENV || "development",
+      timestamp: new Date().toISOString(),
+      supabaseConnected: !!getSupabase(),
+      calcomConfigured: !!apiKey && apiKey !== "11",
+      version: "2.0.0",
+    });
   });
 
   // Mount the separate lead-magnet static landing page at /lead-magnet and /leadmagnets on the same domain

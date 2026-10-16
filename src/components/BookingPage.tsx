@@ -16,10 +16,12 @@ import {
   ExternalLink, 
   Info,
   FileText,
-  RefreshCw,
+  RefreshCw, 
   AlertCircle,
-  Timer
+  Timer,
+  Loader2
 } from 'lucide-react';
+import { ManageBookingModal } from './ManageBookingModal';
 
 interface BookingPageProps {
   onNavigate?: (page: string) => void;
@@ -49,6 +51,9 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate }) => {
   const [errorMessage, setErrorMessage] = useState('');
   const [bookingReference, setBookingReference] = useState('');
   const [calcomSent, setCalcomSent] = useState(false);
+  const [availableSlots, setAvailableSlots] = useState<string[]>([]);
+  const [isLoadingSlots, setIsLoadingSlots] = useState(false);
+  const [manageModalOpen, setManageModalOpen] = useState(false);
 
   // Generate upcoming 30 available days
   const [dateOptions, setDateOptions] = useState<{
@@ -61,11 +66,6 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate }) => {
     isTomorrow: boolean;
     isWeekend: boolean;
   }[]>([]);
-
-  // Time slots
-  const morningSlots = ['09:00 AM', '10:00 AM', '11:00 AM'];
-  const afternoonSlots = ['01:00 PM', '02:00 PM', '03:00 PM', '04:00 PM'];
-  const eveningSlots = ['05:00 PM', '06:00 PM'];
 
   // Parse URL search parameters on mount (email nurturing prefill)
   useEffect(() => {
@@ -148,6 +148,35 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate }) => {
     }
   }, []);
 
+  // Fetch real-time available slots from Cal.com
+  const fetchCalSlots = async (dateISO: string) => {
+    setIsLoadingSlots(true);
+    try {
+      const res = await fetch(`/api/cal/slots?date=${encodeURIComponent(dateISO)}&timezone=${encodeURIComponent(formData.timezone)}`);
+      const data = await res.json();
+      if (res.ok && data.slots && Array.isArray(data.slots)) {
+        setAvailableSlots(data.slots);
+        if (data.slots.length > 0) {
+          setFormData(prev => ({ ...prev, selectedTime: data.slots[0] }));
+        } else {
+          setFormData(prev => ({ ...prev, selectedTime: '' }));
+        }
+      } else {
+        setAvailableSlots([]);
+      }
+    } catch {
+      setAvailableSlots([]);
+    } finally {
+      setIsLoadingSlots(false);
+    }
+  };
+
+  useEffect(() => {
+    if (formData.selectedDateISO) {
+      fetchCalSlots(formData.selectedDateISO);
+    }
+  }, [formData.selectedDateISO, formData.timezone]);
+
   const handleDateSelect = (d: (typeof dateOptions)[0]) => {
     setFormData(prev => ({
       ...prev,
@@ -157,7 +186,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate }) => {
     }));
   };
 
-  // Helper to compute 1-hour session time range
+  // Helper to compute 15-minute session time range
   const getSessionTimeRange = () => {
     try {
       const dateStr = formData.selectedDateISO || new Date().toISOString().split('T')[0];
@@ -172,11 +201,11 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate }) => {
         if (ampm === 'AM' && hours === 12) hours = 0;
       }
       const start = new Date(`${dateStr}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`);
-      const end = new Date(start.getTime() + 60 * 60 * 1000); // 1-hour session
+      const end = new Date(start.getTime() + 15 * 60 * 1000); // 15-minute Free Clarity Call
       return { start, end };
     } catch {
       const now = new Date();
-      return { start: now, end: new Date(now.getTime() + 3600000) };
+      return { start: now, end: new Date(now.getTime() + 900000) };
     }
   };
 
@@ -199,12 +228,16 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate }) => {
       return;
     }
 
+    if (!formData.selectedTime) {
+      setErrorMessage('Please select an available time slot.');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      // 1. Submit to /api/cal/book which writes to production bookings
       const address = 'Telehealth Video Sanctuary';
-      const notes = `Type: 1-Hour Private Consultation Session | Source: ${sourceParam}${utmCampaign ? ` | Campaign: ${utmCampaign}` : ''}${formData.notes ? ` | Client Note: ${formData.notes}` : ''}`;
+      const notes = `Type: 15-minute Free Clarity Call | Source: ${sourceParam}${utmCampaign ? ` | Campaign: ${utmCampaign}` : ''}${formData.notes ? ` | Client Note: ${formData.notes}` : ''}`;
 
       const calRes = await fetch('/api/cal/book', {
         method: 'POST',
@@ -212,55 +245,55 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate }) => {
         body: JSON.stringify({
           name: formData.fullName.trim(),
           email: formData.email.trim(),
-          phone: formData.phone.trim() || 'Not provided',
+          phone: formData.phone.trim(),
           address,
           selectedDate: formData.selectedDate,
           selectedTime: formData.selectedTime,
           timezone: formData.timezone,
           notes,
-          duration: 60,
+          duration: 15,
         }),
       });
 
-      let refId = `CHH-CAL-${Math.floor(100000 + Math.random() * 900000)}`;
+      const calData = await calRes.json().catch(() => ({}));
 
-      if (calRes.ok) {
-        const calData = await calRes.json().catch(() => ({}));
-        if (calData.reference) refId = calData.reference;
-        if (calData.calcomSent) setCalcomSent(true);
+      if (calRes.ok && calData.success && calData.reference) {
+        setBookingReference(calData.reference);
+        setCalcomSent(Boolean(calData.calcomSent));
+
+        // Register lead attribution via /api/leads asynchronously
+        fetch('/api/leads', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fullName: formData.fullName.trim(),
+            firstName: formData.fullName.trim().split(' ')[0],
+            email: formData.email.trim(),
+            phone: formData.phone.trim(),
+            serviceInterest: '15-minute Free Clarity Call',
+            source: sourceParam,
+            utm_source: sourceParam,
+            notes: `Booked 15-Min Clarity Call: ${formData.selectedDate} at ${formData.selectedTime} (${formData.timezone}) | Ref: ${calData.reference}`,
+          }),
+        }).catch(err => console.warn('Attribution lead log notice:', err));
+
+        setCurrentStep(2);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        const errorDetail = calData.error || 'Cal.com could not confirm this appointment slot. Please choose another time.';
+        setErrorMessage(errorDetail);
+        if (calData.code === 'SLOT_TAKEN' && formData.selectedDateISO) {
+          fetchCalSlots(formData.selectedDateISO);
+        }
       }
-
-      // 2. Register lead attribution via /api/leads
-      await fetch('/api/leads', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fullName: formData.fullName.trim(),
-          firstName: formData.fullName.trim().split(' ')[0],
-          email: formData.email.trim(),
-          phone: formData.phone.trim(),
-          serviceInterest: '1-Hour Private Consultation Session',
-          source: sourceParam,
-          utm_source: sourceParam,
-          notes: `Booked 1-Hour Session: ${formData.selectedDate} at ${formData.selectedTime} (${formData.timezone}) | Ref: ${refId}`,
-        }),
-      }).catch(err => console.warn('Attribution lead log notice:', err));
-
-      setBookingReference(refId);
-      setCurrentStep(2);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err: any) {
-      console.warn('Booking network notice, providing guaranteed confirmation:', err);
-      const fallbackRef = `CHH-CAL-${Math.floor(100000 + Math.random() * 900000)}`;
-      setBookingReference(fallbackRef);
-      setCurrentStep(2);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      setErrorMessage('Network connection error while contacting booking server. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Google Calendar URL generator (1-hour block)
+  // Google Calendar URL generator (15-minute block)
   const getGoogleCalendarUrl = () => {
     const { start, end } = getSessionTimeRange();
     const pad = (n: number) => String(n).padStart(2, '0');
@@ -268,7 +301,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate }) => {
       `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
 
     const datesParam = `${formatGCalDate(start)}/${formatGCalDate(end)}`;
-    const title = encodeURIComponent(`1-Hour Private Consultation — Clover Heart Haven`);
+    const title = encodeURIComponent('15-minute Free Clarity Call — Clover Heart Haven');
     const details = encodeURIComponent(
       `1-Hour Private Consultation with Clover Heart Haven.\n` +
       `Booking Reference: ${bookingReference}\n` +
@@ -290,10 +323,10 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate }) => {
     const icsContent = [
       'BEGIN:VCALENDAR',
       'VERSION:2.0',
-      'PRODID:-//Clover Heart Haven//1-Hour Session//EN',
+      'PRODID:-//Clover Heart Haven//Clarity Call//EN',
       'BEGIN:VEVENT',
-      `SUMMARY:1-Hour Private Consultation — Clover Heart Haven`,
-      `DESCRIPTION:1-Hour private session with Clover Heart Haven.\\nBooking Ref: ${bookingReference}\\nAttendee: ${formData.fullName}`,
+      `SUMMARY:15-minute Free Clarity Call — Clover Heart Haven`,
+      `DESCRIPTION:15-minute Free Clarity Call with Clover Heart Haven.\\nBooking Ref: ${bookingReference}\\nAttendee: ${formData.fullName}`,
       `LOCATION:Private Video Sanctuary`,
       `DTSTART:${formatIcsDate(start)}`,
       `DTEND:${formatIcsDate(end)}`,
@@ -305,7 +338,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate }) => {
     const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
     const link = document.createElement('a');
     link.href = window.URL.createObjectURL(blob);
-    link.setAttribute('download', `clover_1hour_session_${bookingReference}.ics`);
+    link.setAttribute('download', `clover_clarity_call_${bookingReference}.ics`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -315,8 +348,8 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate }) => {
     <div className="w-full bg-[#f4f7f1] text-[#1c2c19] pt-24 pb-20 px-4 sm:px-6 md:px-12 lg:px-20 transition-all duration-300">
       <div className="max-w-3xl mx-auto space-y-8">
         
-        {/* Navigation Breadcrumb */}
-        <div className="flex items-center justify-between gap-4">
+        {/* Navigation Breadcrumb & Manage Booking Button */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <button
             onClick={() => onNavigate ? onNavigate('Home') : window.location.assign('/')}
             className="inline-flex items-center gap-2 text-xs sm:text-sm font-semibold text-[#3e5939] hover:text-[#1c2c19] transition-colors cursor-pointer"
@@ -325,9 +358,19 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate }) => {
             Back to Sanctuary
           </button>
           
-          <div className="flex items-center gap-2 text-xs text-[#526a4e]">
-            <ShieldCheck size={14} className="text-emerald-700" />
-            <span className="font-semibold">Encrypted & HIPAA-Compliant</span>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setManageModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-[#2d4728]/20 hover:bg-[#eef4ec] text-xs font-semibold text-[#2d4728] transition-colors cursor-pointer shadow-2xs"
+            >
+              <RefreshCw size={13} className="text-[#3b5936]" />
+              Reschedule or Cancel Existing Session
+            </button>
+            <div className="hidden sm:flex items-center gap-1.5 text-xs text-[#526a4e]">
+              <ShieldCheck size={14} className="text-emerald-700" />
+              <span className="font-semibold">Encrypted & HIPAA-Compliant</span>
+            </div>
           </div>
         </div>
 
@@ -339,17 +382,17 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate }) => {
             <header className="space-y-3 pb-6 border-b border-[#2d4728]/15">
               <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#1c2c19]/5 border border-[#1c2c19]/10 text-xs font-semibold text-[#2d4728]">
                 <Timer size={14} className="text-[#3b5936]" />
-                1-Hour Private Session Scheduling
+                15-Minute Free Clarity Call
               </div>
 
               <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-[#1c2c19] font-['Plus_Jakarta_Sans']">
-                Schedule Your One-Hour Session
+                Schedule Your Free Clarity Call
               </h1>
 
               <p className="text-base sm:text-lg text-[#4a5f47] max-w-2xl leading-relaxed">
                 {formData.fullName 
-                  ? `Welcome, ${formData.fullName.split(' ')[0]}. Select a time that feels gentle and unhurried for your one-hour session.`
-                  : 'A dedicated, unhurried 60-minute private consultation. Choose your preferred time below.'}
+                  ? `Welcome, ${formData.fullName.split(' ')[0]}. Select an available time below for your 15-minute clarity consultation.`
+                  : 'A dedicated, unhurried 15-minute consultation with Dr. Elena Vance to explore your needs and discover if Clover Heart Haven is the right fit.'}
               </p>
             </header>
 
@@ -403,16 +446,16 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate }) => {
                     })}
                   </div>
                   <p className="text-[11px] text-[#71886c] mt-2 flex items-center gap-1">
-                    <Info size={12} /> Scroll horizontally for upcoming available 1-hour session dates.
+                    <Info size={12} /> Scroll horizontally for upcoming available consultation dates.
                   </p>
                 </div>
               </div>
 
-              {/* 2. Choose Time Slot */}
+              {/* 2. Choose Time Slot (Live from Cal.com) */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <label className="block text-xs font-bold uppercase tracking-wider text-[#2e472a]">
-                    2. Select Time Slot (60 Minutes)
+                    2. Select Time Slot (15 Minutes)
                   </label>
                   <div className="text-xs text-[#587352] flex items-center gap-1">
                     <Clock size={12} />
@@ -421,71 +464,109 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate }) => {
                 </div>
 
                 <div className="p-4 sm:p-5 rounded-2xl bg-white border border-[#2d4728]/15 shadow-xs space-y-4">
-                  <div>
-                    <span className="text-xs font-bold uppercase tracking-wider text-[#5f7a5b] block mb-2">
-                      Morning
-                    </span>
-                    <div className="grid grid-cols-3 gap-2">
-                      {morningSlots.map(slot => (
-                        <button
-                          key={slot}
-                          type="button"
-                          onClick={() => setFormData(prev => ({ ...prev, selectedTime: slot }))}
-                          className={`py-2.5 px-3 rounded-xl border text-xs sm:text-sm font-semibold transition-all cursor-pointer text-center ${
-                            formData.selectedTime === slot
-                              ? 'bg-[#1c2c19] text-white border-[#1c2c19] shadow-xs'
-                              : 'bg-[#fafcf8] hover:bg-[#eef4ec] border-[#2d4728]/15 text-[#1c2c19]'
-                          }`}
-                        >
-                          {slot}
-                        </button>
-                      ))}
+                  {isLoadingSlots ? (
+                    <div className="p-8 text-center text-xs text-[#526a4e] flex flex-col items-center justify-center gap-2">
+                      <Loader2 size={24} className="animate-spin text-[#3b5936]" />
+                      <span>Checking real-time calendar availability from Cal.com...</span>
                     </div>
-                  </div>
+                  ) : availableSlots.length === 0 ? (
+                    <div className="p-6 rounded-xl bg-amber-50/70 border border-amber-200 text-center space-y-2">
+                      <p className="text-sm font-semibold text-amber-900">No Open Slots on {formData.selectedDateLabel || 'this date'}</p>
+                      <p className="text-xs text-amber-800 leading-relaxed max-w-md mx-auto">
+                        All consultation slots for this date are filled or the therapist is not taking appointments. Please select another date above or retry.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => formData.selectedDateISO && fetchCalSlots(formData.selectedDateISO)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-amber-300 text-xs font-bold text-amber-900 hover:bg-amber-100/50 cursor-pointer transition-colors shadow-2xs"
+                      >
+                        <RefreshCw size={12} /> Retry Availability
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {/* Morning Slots */}
+                      {availableSlots.some(s => s.includes('AM') && !s.startsWith('12:')) && (
+                        <div>
+                          <span className="text-xs font-bold uppercase tracking-wider text-[#5f7a5b] block mb-2">
+                            Morning
+                          </span>
+                          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                            {availableSlots
+                              .filter(s => s.includes('AM') && !s.startsWith('12:'))
+                              .map(slot => (
+                                <button
+                                  key={slot}
+                                  type="button"
+                                  onClick={() => setFormData(prev => ({ ...prev, selectedTime: slot }))}
+                                  className={`py-2.5 px-3 rounded-xl border text-xs sm:text-sm font-semibold transition-all cursor-pointer text-center ${
+                                    formData.selectedTime === slot
+                                      ? 'bg-[#1c2c19] text-white border-[#1c2c19] shadow-xs'
+                                      : 'bg-[#fafcf8] hover:bg-[#eef4ec] border-[#2d4728]/15 text-[#1c2c19]'
+                                  }`}
+                                >
+                                  {slot}
+                                </button>
+                              ))}
+                          </div>
+                        </div>
+                      )}
 
-                  <div>
-                    <span className="text-xs font-bold uppercase tracking-wider text-[#5f7a5b] block mb-2">
-                      Afternoon
-                    </span>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                      {afternoonSlots.map(slot => (
-                        <button
-                          key={slot}
-                          type="button"
-                          onClick={() => setFormData(prev => ({ ...prev, selectedTime: slot }))}
-                          className={`py-2.5 px-3 rounded-xl border text-xs sm:text-sm font-semibold transition-all cursor-pointer text-center ${
-                            formData.selectedTime === slot
-                              ? 'bg-[#1c2c19] text-white border-[#1c2c19] shadow-xs'
-                              : 'bg-[#fafcf8] hover:bg-[#eef4ec] border-[#2d4728]/15 text-[#1c2c19]'
-                          }`}
-                        >
-                          {slot}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                      {/* Afternoon Slots */}
+                      {availableSlots.some(s => s.includes('PM') && (s.startsWith('12:') || s.startsWith('1:') || s.startsWith('2:') || s.startsWith('3:') || s.startsWith('4:'))) && (
+                        <div>
+                          <span className="text-xs font-bold uppercase tracking-wider text-[#5f7a5b] block mb-2">
+                            Afternoon
+                          </span>
+                          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                            {availableSlots
+                              .filter(s => s.includes('PM') && (s.startsWith('12:') || s.startsWith('1:') || s.startsWith('2:') || s.startsWith('3:') || s.startsWith('4:')))
+                              .map(slot => (
+                                <button
+                                  key={slot}
+                                  type="button"
+                                  onClick={() => setFormData(prev => ({ ...prev, selectedTime: slot }))}
+                                  className={`py-2.5 px-3 rounded-xl border text-xs sm:text-sm font-semibold transition-all cursor-pointer text-center ${
+                                    formData.selectedTime === slot
+                                      ? 'bg-[#1c2c19] text-white border-[#1c2c19] shadow-xs'
+                                      : 'bg-[#fafcf8] hover:bg-[#eef4ec] border-[#2d4728]/15 text-[#1c2c19]'
+                                  }`}
+                                >
+                                  {slot}
+                                </button>
+                              ))}
+                          </div>
+                        </div>
+                      )}
 
-                  <div>
-                    <span className="text-xs font-bold uppercase tracking-wider text-[#5f7a5b] block mb-2">
-                      Late Afternoon / Evening
-                    </span>
-                    <div className="grid grid-cols-2 gap-2">
-                      {eveningSlots.map(slot => (
-                        <button
-                          key={slot}
-                          type="button"
-                          onClick={() => setFormData(prev => ({ ...prev, selectedTime: slot }))}
-                          className={`py-2.5 px-3 rounded-xl border text-xs sm:text-sm font-semibold transition-all cursor-pointer text-center ${
-                            formData.selectedTime === slot
-                              ? 'bg-[#1c2c19] text-white border-[#1c2c19] shadow-xs'
-                              : 'bg-[#fafcf8] hover:bg-[#eef4ec] border-[#2d4728]/15 text-[#1c2c19]'
-                          }`}
-                        >
-                          {slot}
-                        </button>
-                      ))}
+                      {/* Evening Slots */}
+                      {availableSlots.some(s => s.includes('PM') && !s.startsWith('12:') && !s.startsWith('1:') && !s.startsWith('2:') && !s.startsWith('3:') && !s.startsWith('4:')) && (
+                        <div>
+                          <span className="text-xs font-bold uppercase tracking-wider text-[#5f7a5b] block mb-2">
+                            Late Afternoon / Evening
+                          </span>
+                          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                            {availableSlots
+                              .filter(s => s.includes('PM') && !s.startsWith('12:') && !s.startsWith('1:') && !s.startsWith('2:') && !s.startsWith('3:') && !s.startsWith('4:'))
+                              .map(slot => (
+                                <button
+                                  key={slot}
+                                  type="button"
+                                  onClick={() => setFormData(prev => ({ ...prev, selectedTime: slot }))}
+                                  className={`py-2.5 px-3 rounded-xl border text-xs sm:text-sm font-semibold transition-all cursor-pointer text-center ${
+                                    formData.selectedTime === slot
+                                      ? 'bg-[#1c2c19] text-white border-[#1c2c19] shadow-xs'
+                                      : 'bg-[#fafcf8] hover:bg-[#eef4ec] border-[#2d4728]/15 text-[#1c2c19]'
+                                  }`}
+                                >
+                                  {slot}
+                                </button>
+                              ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  </div>
+                  )}
                 </div>
               </div>
 
@@ -524,7 +605,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate }) => {
                         className="w-full px-3.5 py-2.5 rounded-xl border border-[#2d4728]/20 bg-[#fafcf8] text-sm text-[#1c2c19] focus:outline-none focus:ring-2 focus:ring-[#1c2c19]"
                       />
                       <span className="text-[11px] text-[#698464] mt-1 block">
-                        Your private video link and 1-hour calendar invite will be sent here.
+                        Your private video link and calendar invite will be sent here.
                       </span>
                     </div>
                   </div>
@@ -536,13 +617,13 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate }) => {
                       </label>
                       <input
                         type="tel"
-                        placeholder="e.g. (415) 555-0192"
+                        placeholder="e.g. +1 (415) 555-0192 or (415) 555-0192"
                         value={formData.phone}
                         onChange={e => setFormData(prev => ({ ...prev, phone: e.target.value }))}
                         className="w-full px-3.5 py-2.5 rounded-xl border border-[#2d4728]/20 bg-[#fafcf8] text-sm text-[#1c2c19] focus:outline-none focus:ring-2 focus:ring-[#1c2c19]"
                       />
                       <span className="text-[11px] text-[#698464] mt-1 block">
-                        Used only for session reminders. Never shared.
+                        Used for Cal.com SMS reminders. Include country code for international.
                       </span>
                     </div>
 
@@ -579,12 +660,12 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate }) => {
                 {isSubmitting ? (
                   <>
                     <RefreshCw size={18} className="animate-spin" />
-                    <span>Reserving Your 1-Hour Session...</span>
+                    <span>Reserving Your Clarity Call...</span>
                   </>
                 ) : (
                   <>
                     <CalendarCheck2 size={20} />
-                    <span>Confirm & Reserve My 1-Hour Session</span>
+                    <span>Confirm & Reserve My Clarity Call</span>
                     <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
                   </>
                 )}
@@ -609,7 +690,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate }) => {
                   </div>
                   <div>
                     <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700 block">
-                      One-Hour Session Confirmed
+                      15-Minute Clarity Call Confirmed
                     </span>
                     <h2 className="text-2xl sm:text-3xl font-bold text-[#1c2c19] font-['Plus_Jakarta_Sans']">
                       You&apos;re All Set, {formData.fullName.split(' ')[0]}!
@@ -641,7 +722,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate }) => {
                   <div className="text-xs text-[#5f7a5b] font-bold uppercase tracking-wider">Duration & Format</div>
                   <div className="flex items-center gap-2 text-[#1c2c19] font-semibold text-base">
                     <Timer size={18} className="text-[#3b5936]" />
-                    <span>1 Hour (60 Minutes)</span>
+                    <span>15 Minutes (Complimentary)</span>
                   </div>
                   <div className="flex items-center gap-1.5 text-xs text-[#587352]">
                     <Video size={14} className="text-[#3b5936]" />
@@ -653,7 +734,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate }) => {
               {/* One-Click Calendar Integration */}
               <div className="space-y-3">
                 <span className="text-xs font-bold uppercase tracking-wider text-[#2e472a] block">
-                  Add 1-Hour Block to Your Calendar:
+                  Add to Your Calendar:
                 </span>
                 <div className="flex flex-wrap items-center gap-3">
                   <a
@@ -663,7 +744,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate }) => {
                     className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#1c2c19] text-white text-xs sm:text-sm font-bold hover:bg-[#283e24] transition-all cursor-pointer shadow-xs"
                   >
                     <CalendarCheck2 size={16} className="text-[#a4bc87]" />
-                    Add to Google Calendar (1 Hour)
+                    Add to Google Calendar (15 Min)
                     <ExternalLink size={12} className="opacity-70" />
                   </a>
 
@@ -673,6 +754,14 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate }) => {
                   >
                     <Download size={16} className="text-[#3b5936]" />
                     Download Apple / Outlook (.ics)
+                  </button>
+
+                  <button
+                    onClick={() => setManageModalOpen(true)}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#eef4ec] border border-[#2d4728]/20 text-[#2d4728] text-xs sm:text-sm font-bold hover:bg-[#dce9d8] transition-all cursor-pointer shadow-xs"
+                  >
+                    <RefreshCw size={14} className="text-[#3b5936]" />
+                    Manage / Reschedule / Cancel
                   </button>
                 </div>
               </div>
@@ -723,6 +812,13 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate }) => {
 
           </div>
         )}
+
+        {/* Self-service Client Reschedule/Cancel Modal */}
+        <ManageBookingModal
+          isOpen={manageModalOpen}
+          onClose={() => setManageModalOpen(false)}
+          initialReference={bookingReference}
+        />
 
       </div>
     </div>

@@ -238,12 +238,10 @@ CREATE POLICY "Allow anon insert leads" ON public.leads FOR INSERT TO anon, auth
 CREATE POLICY "Allow anon insert bookings" ON public.bookings FOR INSERT TO anon, authenticated WITH CHECK (true);
 CREATE POLICY "Allow anon insert analytics" ON public.analytics_events FOR INSERT TO anon, authenticated WITH CHECK (true);
 
-CREATE POLICY "Allow select productionbookings" ON public.productionbookings FOR SELECT TO anon, authenticated USING (true);
-CREATE POLICY "Allow update productionbookings" ON public.productionbookings FOR UPDATE TO anon, authenticated USING (true);
-CREATE POLICY "Allow select leads" ON public.leads FOR SELECT TO anon, authenticated USING (true);
-CREATE POLICY "Allow select bookings" ON public.bookings FOR SELECT TO anon, authenticated USING (true);
-CREATE POLICY "Allow update bookings" ON public.bookings FOR UPDATE TO anon, authenticated USING (true);
-CREATE POLICY "Allow select analytics" ON public.analytics_events FOR SELECT TO anon, authenticated USING (true);`;
+CREATE POLICY "Service role full access productionbookings" ON public.productionbookings FOR ALL TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "Service role full access leads" ON public.leads FOR ALL TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "Service role full access bookings" ON public.bookings FOR ALL TO service_role USING (true) WITH CHECK (true);
+CREATE POLICY "Service role full access analytics" ON public.analytics_events FOR ALL TO service_role USING (true) WITH CHECK (true);`;
 
   const fetchData = async (overridePass?: string) => {
     const activePass = overridePass !== undefined ? overridePass : passcode;
