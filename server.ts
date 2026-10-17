@@ -872,47 +872,15 @@ async function startServer(app: express.Express = express()) {
 
   // Helper: Normalize raw phone number string to valid international E.164 format for Cal.com
   const normalizeE164Phone = (rawPhone?: string): string | undefined => {
-    if (!rawPhone) return undefined;
-    const trimmed = rawPhone.trim();
-    if (
-      !trimmed ||
-      /^(not provided|none|n\/a|na|no|null|undefined|pending intake)$/i.test(trimmed)
-    ) {
-      return undefined;
-    }
-    // If starts with '+', strip formatting characters (spaces, dashes, parentheses)
-    if (trimmed.startsWith("+")) {
-      const cleaned = "+" + trimmed.replace(/\D/g, "");
-      if (cleaned.length >= 8 && cleaned.length <= 16) {
-        return cleaned;
-      }
-    }
-    const digits = trimmed.replace(/\D/g, "");
-    if (!digits || digits.length < 7) {
-      return undefined;
-    }
-    // US / Canada standard 10 digits (e.g. 4155550192) -> +14155550192
-    if (digits.length === 10) {
-      return `+1${digits}`;
-    }
-    // 11 digits starting with 1 (e.g. 14155550192) -> +14155550192
-    if (digits.length === 11 && digits.startsWith("1")) {
-      return `+${digits}`;
-    }
-    // 11 digits starting with 0 (e.g. Nigeria 080... or UK 07...)
-    if (digits.length === 11 && digits.startsWith("0")) {
-      if (/^0[789][01]/.test(digits)) {
-        return `+234${digits.slice(1)}`;
-      }
-      if (digits.startsWith("07")) {
-        return `+44${digits.slice(1)}`;
-      }
-    }
-    if (digits.length >= 10 && digits.length <= 15) {
-      return `+${digits}`;
-    }
-    return undefined;
-  };
+  if (!rawPhone?.trim().startsWith("+")) return undefined;
+
+  const digits = rawPhone.replace(/\D/g, "");
+
+  // E.164: country code plus number, with 8–15 digits total.
+  if (!/^[1-9]\d{7,14}$/.test(digits)) return undefined;
+
+  return `+${digits}`;
+};
 
   let cachedCalcomEventTypeId: number | null = null;
   let cachedCalcomEventTypeName: string | null = null;
@@ -1365,10 +1333,25 @@ async function startServer(app: express.Express = express()) {
         });
       }
 
-      const rawPhone = (phone && typeof phone === "string") ? phone.trim() : "";
       const isPlaceholderPhone = /^(not provided|none|n\/a|na|no|null|undefined)$/i.test(rawPhone);
-      const phoneForCalcom = isPlaceholderPhone ? "" : rawPhone;
+  
       const storedPhone = (rawPhone && !isPlaceholderPhone) ? rawPhone : "Not provided";
+
+
+
+      const rawPhone = typeof phone === "string" ? phone.trim() : "";
+const phoneForCalcom = normalizeE164Phone(rawPhone);
+
+if (!phoneForCalcom) {
+  return res.status(400).json({
+    success: false,
+    error: "Enter your phone number with + and the country code, such as +14155550192.",
+    code: "INVALID_PHONE",
+  });
+}
+
+const storedPhone = phoneForCalcom;
+
 
       const apiKey = getCalcomApiKey();
 
@@ -1457,7 +1440,7 @@ async function startServer(app: express.Express = express()) {
         persisted: savedToSupabase,
         name: name.trim(),
         email: email.trim(),
-        phone: phone.trim(),
+        phone: internationalPhone,
         selectedDate,
         selectedTime,
       });

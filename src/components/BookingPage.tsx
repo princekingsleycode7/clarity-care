@@ -232,7 +232,19 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate }) => {
       setErrorMessage('Please select an available time slot.');
       return;
     }
+    const phoneDigits = formData.phone.replace(/\D/g, '');
 
+if (
+  !formData.phone.trim().startsWith('+') ||
+  !/^[1-9]\d{7,14}$/.test(phoneDigits)
+) {
+  setErrorMessage(
+    'Enter your full phone number with the + and country code, such as +14155550192.'
+  );
+  return;
+}
+
+const internationalPhone = `+${phoneDigits}`;
     setIsSubmitting(true);
 
     try {
@@ -611,20 +623,37 @@ export const BookingPage: React.FC<BookingPageProps> = ({ onNavigate }) => {
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
-                    <div>
-                      <label className="block text-xs font-bold text-[#1c2c19] mb-1.5 flex items-center gap-1.5">
-                        <Phone size={14} className="text-[#3b5936]" /> Phone Number (Optional)
-                      </label>
-                      <input
-                        type="tel"
-                        placeholder="e.g. +1 (415) 555-0192 or (415) 555-0192"
-                        value={formData.phone}
-                        onChange={e => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-[#2d4728]/20 bg-[#fafcf8] text-sm text-[#1c2c19] focus:outline-none focus:ring-2 focus:ring-[#1c2c19]"
-                      />
-                      <span className="text-[11px] text-[#698464] mt-1 block">
-                        Used for Cal.com SMS reminders. Include country code for international.
-                      </span>
+
+ <div>
+
+                  <label className="block text-xs font-bold text-[#1c2c19] mb-1.5 flex items-center gap-1.5">
+  <Phone size={14} className="text-[#3b5936]" />
+  Phone Number
+</label>
+
+<input
+  type="tel"
+  required
+  autoComplete="tel"
+  inputMode="tel"
+  placeholder="+14155550192"
+  value={formData.phone}
+  onChange={e =>
+    setFormData(prev => ({ ...prev, phone: e.target.value }))
+  }
+  className="w-full px-3.5 py-2.5 rounded-xl border border-[#2d4728]/20 bg-[#fafcf8] text-sm text-[#1c2c19] focus:outline-none focus:ring-2 focus:ring-[#1c2c19]"
+/>
+
+<span className="text-[11px] text-[#698464] mt-1 block">
+  Include +, your country code, and your number. Example: +14155550192.
+</span>
+
+
+
+
+
+                   
+                
                     </div>
 
                     <div>
